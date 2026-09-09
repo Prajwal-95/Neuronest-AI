@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession } from './gameEngine'
+import { buildSession, suggestDifficulty } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
 import GameStartSequence from '../animation/GameStartSequence'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { useI18n } from '../services/i18n'
 
 const LEVEL_CONFIG = {
   1: { max: 10, ops: ['+'], rounds: 5, options: 3 },
@@ -52,6 +53,7 @@ function generateProblem(cfg) {
 export default function QuickMath() {
   const navigate = useNavigate()
   const { saveSession } = useOffline()
+  const { tr } = useI18n()
   useSceneMode('game-math')
   const setSceneEnergy = useAnimStore((s) => s.setEnergy)
   const [difficulty, setDifficulty] = useState(() => Number(localStorage.getItem('neuronest_math_level')) || 1)
@@ -109,8 +111,14 @@ export default function QuickMath() {
       mistakes: wrong, attempts: totalAnswered, completed: true,
       offline: !navigator.onLine, recentScores: recentScores.slice(-5), clientId: makeClientId(),
     })
-    const nextLevel = Math.min(5, difficulty + 1)
-    const adaptive = { recommended: nextLevel, reason: 'Level ' + difficulty + ' completed - great job! The next round will be Level ' + nextLevel + '.' }
+    const adaptive = suggestDifficulty({
+      accuracy,
+      responseTime: elapsed / Math.max(totalAnswered, 1),
+      mistakes: wrong,
+      currentDifficulty: difficulty,
+      recentScores: recentScores.slice(-5),
+    })
+    const nextLevel = adaptive.recommended
     saveSession(session)
     localStorage.setItem('neuronest_recent_scores', JSON.stringify([...recentScores.slice(-9), session.score]))
     localStorage.setItem('neuronest_math_level', String(nextLevel))
@@ -121,18 +129,18 @@ export default function QuickMath() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <GameHeader
-        title="Quick Math"
+        title={tr('games.math')}
         voiceInstruction={() => voiceService.speak('Quick Math. Solve simple addition and subtraction problems.')}
         onBack={() => navigate('/patient/games')}
       />
       <GameMeta level={difficulty}>
-        {cfg.rounds} problems · solve the equation
+        {tr('games.problemsSolve', { count: cfg.rounds })}
       </GameMeta>
 
       {phase === 'intro' && !anticipating && (
         <div className="card text-center py-12">
           <span className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 text-white flex items-center justify-center text-3xl font-bold nx-float">+</span>
-          <p className="text-lg text-navy-700 mt-5 mb-6">Solve simple math problems. Tap the correct answer for each one.</p>
+          <p className="text-lg text-navy-700 mt-5 mb-6">{tr('games.solveMath')}</p>
           <button
             type="button"
             className="btn-primary !px-10 !py-5 !text-xl"
@@ -141,7 +149,7 @@ export default function QuickMath() {
               voiceService.speak('Starting Quick Math. Level ' + difficulty + '.')
             }}
           >
-            Start Level {difficulty}
+            {tr('games.startLevel')} {difficulty}
           </button>
         </div>
       )}
@@ -176,7 +184,7 @@ export default function QuickMath() {
             transition={{ type: 'spring', stiffness: 160, damping: 16 }}
             className="mb-8"
           >
-            <p className="text-sm text-navy-400 mb-2">Question {currentIdx + 1} of {problems.length}</p>
+            <p className="text-sm text-navy-400 mb-2">{tr('games.question')} {currentIdx + 1} / {problems.length}</p>
             <p className="text-6xl md:text-7xl font-bold text-navy-800 tracking-wide">{currentProblem.text} = ?</p>
           </motion.div>
           <div className="flex flex-wrap gap-4 justify-center">
@@ -203,7 +211,7 @@ export default function QuickMath() {
               transition={{ type: 'spring', stiffness: 200, damping: 12 }}
               className={'mt-6 text-lg font-semibold ' + (feedback === 'correct' ? 'text-teal-600' : 'text-amber-600')}
             >
-              {feedback === 'correct' ? 'Correct!' : 'The answer was ' + currentProblem.answer}
+              {feedback === 'correct' ? tr('games.correctMsg') : tr('games.wrongMsg', { answer: currentProblem.answer })}
             </motion.p>
           )}
         </div>
@@ -213,12 +221,12 @@ export default function QuickMath() {
         <GameResult
           session={result.session}
           stats={[
-            { label: 'Correct', value: correct + ' / ' + result.session.attempts },
-            { label: 'Mistakes', value: result.session.mistakes },
-            { label: 'Time', value: responseTime.toFixed(0) + 's' },
-            { label: 'Problems', value: result.session.attempts },
+            { label: tr('games.correct'), value: correct + ' / ' + result.session.attempts },
+            { label: tr('games.mistakes'), value: result.session.mistakes },
+            { label: tr('games.time'), value: responseTime.toFixed(0) + 's' },
+            { label: tr('games.problems'), value: result.session.attempts },
           ]}
-          insight={{ title: 'AI recommendation', text: result.adaptive.reason }}
+          insight={{ title: tr('games.aiRecommendation'), text: result.adaptive.reason }}
           levelUp={{
             level: result.adaptive.recommended,
             direction:
@@ -229,8 +237,8 @@ export default function QuickMath() {
                 : 'same',
             message:
               result.adaptive.recommended > result.prevDifficulty
-                ? 'Your number sense is getting sharper.'
-                : 'Every round keeps your mind sharp.',
+                ? tr('games.numberSharp')
+                : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
           onNext={() =>

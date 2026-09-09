@@ -23,14 +23,18 @@ export function I18nProvider({ children }) {
   }, [lang])
 
   const tr = useCallback(
-    (key) => {
+    (key, params = {}) => {
       const parts = key.split('.')
       let cur = t
       for (const p of parts) {
         if (cur == null) return key
         cur = cur[p]
       }
-      return typeof cur === 'string' ? cur : key
+      if (typeof cur !== 'string') return key
+      return Object.entries(params).reduce(
+        (str, [k, v]) => str.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v)),
+        cur
+      )
     },
     [t]
   )

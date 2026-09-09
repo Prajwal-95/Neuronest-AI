@@ -5,7 +5,7 @@ import { ArrowLeft, Volume2, Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { useAuth } from '../auth/AuthContext'
 import { voiceService } from '../services/voice'
-import { buildSession } from './gameEngine'
+import { buildSession, suggestDifficulty } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import MemoryCard from '../animation/MemoryCard'
 import GameResult from '../animation/GameResult'
@@ -13,6 +13,7 @@ import GameStartSequence from '../animation/GameStartSequence'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { useI18n } from '../services/i18n'
 
 // Difficulty -> number of cards (Level 1: 6 cards/3 pairs ... Level 5: 20 cards/10 pairs)
 const LEVEL_CONFIG = {
@@ -37,6 +38,7 @@ function shuffle(arr) {
 export default function MemoryMatch() {
   const navigate = useNavigate()
   const { saveSession } = useOffline()
+  const { tr } = useI18n()
   useSceneMode('game-memory')
   const triggerBurst = useAnimStore((s) => s.triggerBurst)
   const setSceneEnergy = useAnimStore((s) => s.setEnergy)
@@ -152,12 +154,15 @@ export default function MemoryMatch() {
         recentScores: recentScores.slice(-5),
         clientId: makeClientId(),
       })
-      // Completing a level always advances to the next one (capped at 5)
-      const nextLevel = Math.min(5, difficulty + 1)
-      const adaptive = {
-        recommended: nextLevel,
-        reason: `Level ${difficulty} completed — great job! The next round will be Level ${nextLevel}.`,
-      }
+      // Use the adaptive engine to determine the next difficulty
+      const adaptive = suggestDifficulty({
+        accuracy: finalAccuracy,
+        responseTime: finalElapsed / Math.max(movesUsed, 1),
+        mistakes,
+        currentDifficulty: difficulty,
+        recentScores: recentScores.slice(-5),
+      })
+      const nextLevel = adaptive.recommended
       saveSession(session)
       localStorage.setItem(
         'neuronest_recent_scores',
@@ -178,20 +183,19 @@ export default function MemoryMatch() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <GameHeader
-        title="Memory Match"
+        title={tr('games.memory')}
         voiceInstruction={() => voiceService.speak('Find the matching pairs of cards.')}
         onBack={() => navigate('/patient/games')}
       />
       <GameMeta level={difficulty}>
-        {pairs} pairs · Find matching cards
+        {tr('games.pairsFind', { pairs })}
       </GameMeta>
 
       {phase === 'intro' && !anticipating && (
         <div className="card flex flex-col items-center gap-5 py-12">
           <Play size={56} className="text-teal-600 nx-float" aria-hidden="true" />
           <p className="text-lg text-center text-navy-700 max-w-md">
-            Cards will appear briefly. Tap one card, then tap another to find its
-            matching pair.
+            {tr('games.cardsBrief')}
           </p>
           <button
             type="button"
@@ -201,7 +205,7 @@ export default function MemoryMatch() {
               voiceService.speak(`Starting Memory Match. Level ${difficulty}.`)
             }}
           >
-            Start Level {difficulty}
+            {tr('games.startLevel')} {difficulty}
           </button>
         </div>
       )}
@@ -220,10 +224,10 @@ export default function MemoryMatch() {
       {phase === 'playing' && (
         <>
           <div className="flex flex-wrap gap-4 justify-between items-center mb-4 text-lg font-semibold text-navy-700">
-            <span aria-live="polite">Moves: {moves}</span>
-            <span>Pairs: {matched.length / 2} / {pairs}</span>
-            <span>Mistakes: {mistakes}</span>
-            <span>Time: {elapsed.toFixed(0)}s</span>
+            <span aria-live="polite">{tr('games.moves')}: {moves}</span>
+            <span>{tr('games.pairs')}: {matched.length / 2} / {pairs}</span>
+            <span>{tr('games.mistakes')}: {mistakes}</span>
+            <span>{tr('games.time')}: {elapsed.toFixed(0)}s</span>
           </div>
 
           <div
@@ -257,7 +261,7 @@ export default function MemoryMatch() {
               animate={{ opacity: 1 }}
               className="text-center text-teal-700 font-semibold mt-4 text-xl"
             >
-              ✨ Pair matched!
+              ✨ {tr('games.pairMatched')}
             </motion.p>
           )}
         </>
@@ -267,12 +271,12 @@ export default function MemoryMatch() {
         <GameResult
           session={result.session}
           stats={[
-            { label: 'Accuracy', value: `${Math.round(result.session.accuracy * 100)}%` },
-            { label: 'Moves', value: result.session.attempts },
-            { label: 'Pairs', value: pairs },
-            { label: 'Mistakes', value: result.session.mistakes },
+            { label: tr('games.accuracy'), value: `${Math.round(result.session.accuracy * 100)}%` },
+            { label: tr('games.moves'), value: result.session.attempts },
+            { label: tr('games.pairs'), value: pairs },
+            { label: tr('games.mistakes'), value: result.session.mistakes },
           ]}
-          insight={{ title: 'AI recommendation', text: result.adaptive.reason }}
+          insight={{ title: tr('games.aiRecommendation'), text: result.adaptive.reason }}
           levelUp={{
             level: result.adaptive.recommended,
             direction:
@@ -283,8 +287,8 @@ export default function MemoryMatch() {
                 : 'same',
             message:
               result.adaptive.recommended > result.prevDifficulty
-                ? 'Your memory is getting stronger.'
-                : 'Every round keeps your mind sharp.',
+                ? tr('games.memoryStronger')
+                : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
           onNext={() =>

@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Volume2, Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession } from './gameEngine'
+import { buildSession, suggestDifficulty } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
 import GameStartSequence from '../animation/GameStartSequence'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { useI18n } from '../services/i18n'
 
 // Level config: total objects, target count, distractor pool, time limit (s)
 const LEVEL_CONFIG = {
@@ -36,6 +37,7 @@ function shuffle(arr) {
 export default function Attention() {
   const navigate = useNavigate()
   const { saveSession } = useOffline()
+  const { tr } = useI18n()
   useSceneMode('game-attention')
   const triggerBurst = useAnimStore((s) => s.triggerBurst)
   const setSceneEnergy = useAnimStore((s) => s.setEnergy)
@@ -117,20 +119,15 @@ export default function Attention() {
       recentScores: recentScores.slice(-5),
       clientId: makeClientId(),
     })
-    // Completing a level always advances to the next one (capped at 5)
-    // An incomplete round (timeout) goes down one level to keep it comfortable
-    const nextLevel = completed
-      ? Math.min(5, difficulty + 1)
-      : Math.max(1, difficulty - 1)
-    const adaptive = completed
-      ? {
-          recommended: nextLevel,
-          reason: `Level ${difficulty} completed — great focus! The next round will be Level ${nextLevel}.`,
-        }
-      : {
-          recommended: nextLevel,
-          reason: `Let us ease up a little. The next round will be Level ${nextLevel}.`,
-        }
+    // Use the adaptive engine to determine the next difficulty
+    const adaptive = suggestDifficulty({
+      accuracy,
+      responseTime: elapsed / Math.max(totalTaps || 1, 1),
+      mistakes: wrongSelections,
+      currentDifficulty: difficulty,
+      recentScores: recentScores.slice(-5),
+    })
+    const nextLevel = adaptive.recommended
     saveSession(session)
     localStorage.setItem(
       'neuronest_recent_scores',
@@ -187,7 +184,7 @@ export default function Attention() {
           <div className="flex items-center gap-3">
             <span className="w-16 h-16 rounded-2xl bg-navy-700 text-white flex items-center justify-center text-4xl nx-glow">{TARGET}</span>
             <p className="text-lg text-navy-700 max-w-sm">
-              Tap every <strong>{TARGET_LABEL}</strong> before time runs out.
+              {tr('games.tapTarget', { target: TARGET_LABEL })}
             </p>
           </div>
           <button
@@ -198,7 +195,7 @@ export default function Attention() {
               voiceService.speak(`Starting Attention Focus. Level ${difficulty}.`)
             }}
           >
-            Start Level {difficulty}
+            {tr('games.startLevel')} {difficulty}
           </button>
         </div>
       )}
@@ -217,10 +214,10 @@ export default function Attention() {
       {phase === 'playing' && (
         <>
           <div className="flex flex-wrap gap-4 justify-between items-center mb-4 text-lg font-semibold text-navy-700">
-            <span aria-live="polite">Found: {correct.length} / {cfg.targets}</span>
-            <span>Wrong taps: {wrongSelections}</span>
+            <span aria-live="polite">{tr('games.found')}: {correct.length} / {cfg.targets}</span>
+            <span>{tr('games.wrongTaps')}: {wrongSelections}</span>
             <span className={timeLeft <= 10 ? 'text-red-600' : ''}>
-              Time left: {timeLeft}s
+              {tr('games.timeLeft')}: {timeLeft}s
             </span>
           </div>
 
@@ -273,7 +270,7 @@ export default function Attention() {
 
           {/* Progress bar */}
           <div className="mt-6 mb-2 flex justify-between text-sm font-medium text-navy-500">
-            <span>Targets remaining: {cfg.targets - correct.length}</span>
+            <span>{tr('games.targetsRemaining')}: {cfg.targets - correct.length}</span>
             <span>{Math.round((correct.length / cfg.targets) * 100)}%</span>
           </div>
           <div className="h-3 bg-navy-100 rounded-full overflow-hidden w-full">
@@ -289,12 +286,12 @@ export default function Attention() {
         <GameResult
           session={result.session}
           stats={[
-            { label: 'Found', value: `${result.correctCount} / ${cfg.targets}` },
-            { label: 'Wrong taps', value: result.session.mistakes },
-            { label: 'Missed', value: result.missed },
-            { label: 'Time left', value: `${Math.max(0, timeLeft)}s` },
+            { label: tr('games.found'), value: `${result.correctCount} / ${cfg.targets}` },
+            { label: tr('games.wrongTaps'), value: result.session.mistakes },
+            { label: tr('games.missed'), value: result.missed },
+            { label: tr('games.timeLeft'), value: `${Math.max(0, timeLeft)}s` },
           ]}
-          insight={{ title: 'AI recommendation', text: result.adaptive.reason }}
+          insight={{ title: tr('games.aiRecommendation'), text: result.adaptive.reason }}
           levelUp={{
             level: result.adaptive.recommended,
             direction:
@@ -305,10 +302,10 @@ export default function Attention() {
                 : 'same',
             message:
               result.adaptive.recommended > result.prevDifficulty
-                ? 'Your focus is getting stronger.'
+                ? tr('games.focusStronger')
                 : result.adaptive.recommended < result.prevDifficulty
-                ? 'We will take it one step at a time.'
-                : 'Great focus today!',
+                ? tr('games.focusEasier')
+                : tr('games.focusGreat'),
           }}
           onPlayAgain={startGame}
           onNext={() =>

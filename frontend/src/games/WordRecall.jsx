@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession } from './gameEngine'
+import { buildSession, suggestDifficulty } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
 import GameStartSequence from '../animation/GameStartSequence'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { useI18n } from '../services/i18n'
 
 const LEVEL_CONFIG = {
   1: { count: 3, showMs: 3000, options: 6 },
@@ -44,6 +45,7 @@ function shuffle(arr) {
 export default function WordRecall() {
   const navigate = useNavigate()
   const { saveSession } = useOffline()
+  const { tr } = useI18n()
   useSceneMode('game-words')
   const setSceneEnergy = useAnimStore((s) => s.setEnergy)
   const [difficulty, setDifficulty] = useState(() => Number(localStorage.getItem('neuronest_word_level')) || 1)
@@ -115,11 +117,14 @@ export default function WordRecall() {
       recentScores: recentScores.slice(-5),
       clientId: makeClientId(),
     })
-    const nextLevel = Math.min(5, difficulty + 1)
-    const adaptive = {
-      recommended: nextLevel,
-      reason: 'Level ' + difficulty + ' completed - great job! The next round will be Level ' + nextLevel + '.',
-    }
+    const adaptive = suggestDifficulty({
+      accuracy,
+      responseTime: elapsed / Math.max(finalSelection.length, 1),
+      mistakes,
+      currentDifficulty: difficulty,
+      recentScores: recentScores.slice(-5),
+    })
+    const nextLevel = adaptive.recommended
     saveSession(session)
     localStorage.setItem('neuronest_recent_scores', JSON.stringify([...recentScores.slice(-9), session.score]))
     localStorage.setItem('neuronest_word_level', String(nextLevel))
@@ -133,12 +138,12 @@ export default function WordRecall() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <GameHeader
-        title="Word Recall"
+        title={tr('games.words')}
         voiceInstruction={() => voiceService.speak('You will see a set of words. Remember them, then tap the ones you saw.')}
         onBack={() => navigate('/patient/games')}
       />
       <GameMeta level={difficulty}>
-        Remember {cfg.count} words then pick them out
+        {tr('games.rememberWords', { count: cfg.count })}
       </GameMeta>
 
       {phase === 'intro' && !anticipating && (
@@ -146,7 +151,7 @@ export default function WordRecall() {
           <span className="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white flex items-center justify-center nx-float">
             <Play size={28} aria-hidden="true" />
           </span>
-          <p className="text-lg text-navy-700 mt-5 mb-6">You will see a set of words. Remember them, then tap the ones you saw.</p>
+          <p className="text-lg text-navy-700 mt-5 mb-6">{tr('games.seeWords')}</p>
           <button
             type="button"
             className="btn-primary !px-10 !py-5 !text-xl"
@@ -155,7 +160,7 @@ export default function WordRecall() {
               voiceService.speak('Starting Word Recall. Level ' + difficulty + '.')
             }}
           >
-            Start Level {difficulty}
+            {tr('games.startLevel')} {difficulty}
           </button>
         </div>
       )}
@@ -172,7 +177,7 @@ export default function WordRecall() {
       )}
 {phase === 'mem' && (
         <div className="card text-center py-10">
-          <p className="text-navy-400 mb-6 text-lg">Memorise these words:</p>
+          <p className="text-navy-400 mb-6 text-lg">{tr('games.memoriseThese')}</p>
           <div className="flex flex-wrap gap-4 justify-center mb-6">
             {targetWords.map((w, i) => (
               <motion.span
@@ -186,7 +191,7 @@ export default function WordRecall() {
               </motion.span>
             ))}
           </div>
-          <p className="text-navy-400 text-sm">Remember these words…</p>
+          <p className="text-navy-400 text-sm">{tr('games.rememberHint')}</p>
         </div>
       )}
 
@@ -197,7 +202,7 @@ export default function WordRecall() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            Which words did you see? Tap each one you remember.
+            {tr('games.whichWords')}
           </motion.p>
           <div className="flex flex-wrap gap-3 justify-center">
             {options.map((w, idx) => {
@@ -227,7 +232,7 @@ export default function WordRecall() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {selected.length} selected - {targetWords.filter((t) => selected.includes(t)).length} / {cfg.count} found
+              {selected.length} {tr('games.selected')} — {targetWords.filter((t) => selected.includes(t)).length} / {cfg.count} {tr('games.found')}
             </motion.p>
           )}
         </div>
@@ -237,12 +242,12 @@ export default function WordRecall() {
         <GameResult
           session={result.session}
           stats={[
-            { label: 'Remembered', value: `${result.correctCount} / ${cfg.count}` },
-            { label: 'Mistakes', value: result.session.mistakes },
-            { label: 'Picks', value: result.session.attempts },
-            { label: 'Time', value: `${responseTime.toFixed(0)}s` },
+            { label: tr('games.remembered'), value: `${result.correctCount} / ${cfg.count}` },
+            { label: tr('games.mistakes'), value: result.session.mistakes },
+            { label: tr('games.picks'), value: result.session.attempts },
+            { label: tr('games.time'), value: `${responseTime.toFixed(0)}s` },
           ]}
-          insight={{ title: 'AI recommendation', text: result.adaptive.reason }}
+          insight={{ title: tr('games.aiRecommendation'), text: result.adaptive.reason }}
           levelUp={{
             level: result.adaptive.recommended,
             direction:
@@ -253,8 +258,8 @@ export default function WordRecall() {
                 : 'same',
             message:
               result.adaptive.recommended > result.prevDifficulty
-                ? 'Your word memory is growing stronger.'
-                : 'Every round keeps your mind sharp.',
+                ? tr('games.wordStronger')
+                : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
           onNext={() =>

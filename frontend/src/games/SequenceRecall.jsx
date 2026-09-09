@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Volume2, Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession } from './gameEngine'
+import { buildSession, suggestDifficulty } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
 import GameStartSequence from '../animation/GameStartSequence'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { useI18n } from '../services/i18n'
 import { getReducedMotion } from '../animation/device'
 
 // Level -> sequence length (Level 1: 3 symbols ... Level 5: 7 symbols)
@@ -43,6 +44,7 @@ function shuffle(arr) {
 export default function SequenceRecall() {
   const navigate = useNavigate()
   const { saveSession } = useOffline()
+  const { tr } = useI18n()
   useSceneMode('game-sequence')
   const setSceneEnergy = useAnimStore((s) => s.setEnergy)
   const [difficulty, setDifficulty] = useState(
@@ -139,12 +141,15 @@ export default function SequenceRecall() {
       recentScores: recentScores.slice(-5),
       clientId: makeClientId(),
     })
-    // Completing a level always advances to the next one (capped at 5)
-    const nextLevel = Math.min(5, difficulty + 1)
-    const adaptive = {
-      recommended: nextLevel,
-      reason: `Level ${difficulty} completed — great job! The next round will be Level ${nextLevel}.`,
-    }
+    // Use the adaptive engine to determine the next difficulty
+    const adaptive = suggestDifficulty({
+      accuracy,
+      responseTime: elapsed / Math.max(totalInputs, 1),
+      mistakes,
+      currentDifficulty: difficulty,
+      recentScores: recentScores.slice(-5),
+    })
+    const nextLevel = adaptive.recommended
     saveSession(session)
     localStorage.setItem(
       'neuronest_recent_scores',
@@ -163,19 +168,19 @@ export default function SequenceRecall() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
       <GameHeader
-        title="Sequence Recall"
+        title={tr('games.sequence')}
         voiceInstruction={() => voiceService.speak('Watch the sequence, then reproduce it in the same order.')}
         onBack={() => navigate('/patient/games')}
       />
       <GameMeta level={difficulty}>
-        Remember {seqLen} symbols in order
+        {tr('games.rememberSymbols', { count: seqLen })}
       </GameMeta>
 
       {phase === 'intro' && !anticipating && (
         <div className="card flex flex-col items-center gap-5 py-12">
           <Play size={56} className="text-teal-600 nx-float" aria-hidden="true" />
           <p className="text-lg text-center text-navy-700 max-w-md">
-            Watch the symbols appear. Then tap the same symbols in the same order.
+            {tr('games.watchSymbols')}
           </p>
           <button
             type="button"
@@ -185,7 +190,7 @@ export default function SequenceRecall() {
               voiceService.speak(`Starting Sequence Recall. Level ${difficulty}.`)
             }}
           >
-            Start Level {difficulty}
+            {tr('games.startLevel')} {difficulty}
           </button>
         </div>
       )}
@@ -203,7 +208,7 @@ export default function SequenceRecall() {
 
       {phase === 'watch' && (
         <div className="card flex flex-col items-center gap-6 py-12">
-          <p className="text-lg font-semibold text-navy-600">Remember this sequence…</p>
+          <p className="text-lg font-semibold text-navy-600">{tr('games.rememberSequence')}</p>
           <div className="flex gap-4 flex-wrap justify-center">
             {sequence.map((sym, i) => (
               <motion.span
@@ -218,14 +223,14 @@ export default function SequenceRecall() {
               </motion.span>
             ))}
           </div>
-          <p className="text-navy-400 text-sm">Watch carefully…</p>
+          <p className="text-navy-400 text-sm">{tr('games.watchCarefully')}</p>
         </div>
       )}
 
       {phase === 'input' && (
         <div className="card flex flex-col items-center gap-6 py-8">
           <p className="text-lg font-semibold text-navy-700" aria-live="polite">
-            Tap the symbols in the same order — {picked.length} / {seqLen}
+            {tr('games.tapInOrder', { count: picked.length, total: seqLen })}
           </p>
           <div className="flex gap-3 flex-wrap justify-center min-h-16 items-center">
             {picked.map((sym, i) => (
@@ -240,7 +245,7 @@ export default function SequenceRecall() {
               </motion.span>
             ))}
           </div>
-          <p className="text-lg font-semibold text-navy-600">Which symbol came next?</p>
+          <p className="text-lg font-semibold text-navy-600">{tr('games.whichNext')}</p>
           <div className="flex gap-3 flex-wrap justify-center max-w-xl">
             {choiceOptions.map((sym, i) => (
               <motion.button
@@ -265,12 +270,12 @@ export default function SequenceRecall() {
         <GameResult
           session={result.session}
           stats={[
-            { label: 'Accuracy', value: `${Math.round(result.session.accuracy * 100)}%` },
-            { label: 'Mistakes', value: result.session.mistakes },
-            { label: 'Symbols', value: seqLen },
-            { label: 'Time', value: `${responseTime.toFixed(0)}s` },
+            { label: tr('games.accuracy'), value: `${Math.round(result.session.accuracy * 100)}%` },
+            { label: tr('games.mistakes'), value: result.session.mistakes },
+            { label: tr('games.symbols'), value: seqLen },
+            { label: tr('games.time'), value: `${responseTime.toFixed(0)}s` },
           ]}
-          insight={{ title: 'AI recommendation', text: result.adaptive.reason }}
+          insight={{ title: tr('games.aiRecommendation'), text: result.adaptive.reason }}
           levelUp={{
             level: result.adaptive.recommended,
             direction:
@@ -281,8 +286,8 @@ export default function SequenceRecall() {
                 : 'same',
             message:
               result.adaptive.recommended > result.prevDifficulty
-                ? 'Your sequence memory is getting stronger.'
-                : 'Every round keeps your mind sharp.',
+                ? tr('games.seqStronger')
+                : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
           onNext={() =>
