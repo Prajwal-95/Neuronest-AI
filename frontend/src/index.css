@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, sans-serif;
+  /* 3D animation tokens */
+  --nx-teal: #2bb3a3;
+  --nx-teal-soft: #4fd1c5;
+  --nx-navy: #0f1f3d;
+  --nx-violet: #8b7fd6;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: #faf9f5;
+  color: #16294a;
+}
+
+/* High contrast mode supported via .high-contrast class */
+.high-contrast body,
+body.high-contrast {
+  background: #000;
+  color: #fff;
+}
+.high-contrast .card,
+.high-contrast .btn {
+  border: 2px solid #fff !important;
+}
+
+/* Text size modes */
+body.font-small {
+  font-size: 90%;
+}
+body.font-medium {
+  font-size: 100%;
+}
+body.font-large {
+  font-size: 120%;
+}
+body.font-xlarge {
+  font-size: 140%;
+}
+
+/* Focus states for accessibility */
+:focus {
+  outline: 3px solid #2bb3a3;
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+  .neural-tilt { transform: none !important; }
+}
+
+.btn-primary {
+  @apply bg-teal-600 text-white font-semibold rounded-xl px-6 py-4 hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-secondary {
+  @apply bg-white text-navy-700 font-semibold rounded-xl px-6 py-4 border-2 border-navy-100 hover:border-teal-500 transition-colors;
+}
+.card {
+  @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+}
+
+/* ===== 3D CSS helpers ===== */
+
+/* Preserve 3D for card flips */
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+/* Card flip container */
+.flip-card {
+  perspective: 1000px;
+}
+.flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1);
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* 3D tilt used on game/list cards */
+.neural-tilt {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.neural-tilt:hover {
+  transform: perspective(700px) rotateX(3deg) rotateY(-3deg) translateY(-4px);
+  box-shadow: 0 18px 40px -18px rgba(15, 31, 61, 0.35);
+}
+
+/* Gentle float for decorative elements */
+@keyframes nx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.nx-float {
+  animation: nx-float 5s ease-in-out infinite;
+}
+
+/* Soft glow pulse for "alive" nodes */
+@keyframes nx-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(43,179,163,0.35); }
+  50% { box-shadow: 0 0 22px 6px rgba(43,179,163,0.35); }
+}
+.nx-glow {
+  animation: nx-glow 3s ease-in-out infinite;
+}
+
+/* Neural energy connector line that draws itself */
+.nx-connector {
+  stroke-dasharray: 120;
+  stroke-dashoffset: 120;
+  animation: nx-draw 1.2s ease forwards;
+}
+@keyframes nx-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Progress bar shimmer */
+.nx-progress-fill {
+  background: linear-gradient(90deg, #2bb3a3, #4fd1c5, #2bb3a3);
+  background-size: 200% 100%;
+  animation: nx-shimmer 2.4s linear infinite;
+}
+@keyframes nx-shimmer {
+  to { background-position: -200% 0; }
+}
+

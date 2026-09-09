@@ -1,0 +1,47 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+
+const I18nContext = createContext(null)
+
+const messages = {
+  en: () => import('../locales/en.json'),
+  hi: () => import('../locales/hi.json'),
+}
+
+export function I18nProvider({ children }) {
+  const [lang, setLang] = useState(() => localStorage.getItem('neuronest_lang') || 'en')
+  const [t, setT] = useState({})
+
+  useEffect(() => {
+    let mounted = true
+    messages[lang]().then((mod) => {
+      if (mounted) setT(mod.default)
+    })
+    localStorage.setItem('neuronest_lang', lang)
+    return () => {
+      mounted = false
+    }
+  }, [lang])
+
+  const tr = useCallback(
+    (key) => {
+      const parts = key.split('.')
+      let cur = t
+      for (const p of parts) {
+        if (cur == null) return key
+        cur = cur[p]
+      }
+      return typeof cur === 'string' ? cur : key
+    },
+    [t]
+  )
+
+  return (
+    <I18nContext.Provider value={{ lang, setLang, t, tr }}>
+      {children}
+    </I18nContext.Provider>
+  )
+}
+
+export function useI18n() {
+  return useContext(I18nContext)
+}
