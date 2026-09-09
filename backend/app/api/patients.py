@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.models.models import User, UserRole, CaregiverPatient, GameSession, Recommendation
-from app.auth.security import get_current_user
+from app.auth.security import get_current_user, require_role
 from app.schemas.schemas import (
     PatientAnalytics, PatientSummary, CaregiverDashboard,
 )
@@ -138,7 +138,7 @@ def patient_analytics(
 @router.delete("/patients/{patient_id}/levels")
 def reset_patient_levels(
     patient_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.CAREGIVER)),
     db: Session = Depends(get_db),
 ):
     """Caregiver action: reset a patient's adaptive difficulty to Level 1.

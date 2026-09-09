@@ -1,6 +1,7 @@
 {
   "name": "NeuroNest AI – Cognitive Care",
   "short_name": "NeuroNest",
+  "id": "/",
   "description": "Personalized cognitive training and memory assistance for elderly care. Works offline.",
   "start_url": "/",
   "scope": "/",
