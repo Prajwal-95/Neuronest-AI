@@ -34,9 +34,9 @@ services:
     region: singapore
     plan: free
     rootDir: backend
-    # Render's Python runtime reads .python-version in rootDir; the pin here
-    # keeps the deployed interpreter identical to the local venv (3.11).
-    runtimeVersion: "3.11"
+    # Render's Python runtime reads .python-version in rootDir. The interpreter
+    # is now pinned through the PYTHON_VERSION env var below, which keeps the
+    # deployed interpreter identical to the local venv (3.11).
     buildCommand: pip install -r requirements.txt
     # Render injects PORT. The fallback keeps the command usable elsewhere
     # (e.g. `bash -c` inside a Render shell) without a confusing uvicorn error.
@@ -44,6 +44,12 @@ services:
     healthCheckPath: /health
     autoDeploy: true
     envVars:
+      # ---- Runtime pin ----
+      # Render picks the interpreter from PYTHON_VERSION; the old
+      # `runtimeVersion` key is no longer part of the Blueprint spec. 3.11.9 is
+      # the exact build the local venv runs on.
+      - key: PYTHON_VERSION
+        value: "3.11.9"
       # ---- Database: Supabase Postgres (the live datastore) ----
       - key: USE_SUPABASE
         value: "true"
@@ -96,9 +102,9 @@ services:
   # ---------------------------------------------------------------------------
   # Frontend - React + Vite static site (PWA)
   # ---------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: neuronest-web
-    runtime: node
+    runtime: static
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: ./dist
@@ -119,6 +125,7 @@ services:
         sync: false
     # React Router owns the URLs (/patient, /caregiver/..., ...). Without an SPA
     # rewrite, hard-refreshing or sharing a deep link returns Render's 404 page.
-    rewrites:
-      - source: /*
+    routes:
+      - type: rewrite
+        source: /*
         destination: /index.html

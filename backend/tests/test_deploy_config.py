@@ -134,7 +134,19 @@ class TestRenderBlueprint(unittest.TestCase):
     def test_both_services_are_declared(self):
         self.assertEqual(sorted(self.services), ["neuronest-api", "neuronest-web"])
         self.assertEqual(self.api.get("type"), "web")
-        self.assertEqual(self.web.get("type"), "static")
+        # A static site is `type: web` + `runtime: static`; `type: static` was
+        # never a Blueprint service type and makes the whole import fail.
+        self.assertEqual(self.web.get("type"), "web")
+        self.assertEqual(self.web.get("runtime"), "static")
+
+    def test_the_api_pins_python_with_the_python_version_env_var(self):
+        """`runtimeVersion` left the Blueprint spec; PYTHON_VERSION replaced it."""
+        self.assertNotIn("runtimeVersion", self.api)
+        pin = env_var(self.api, "PYTHON_VERSION")
+        self.assertIsNotNone(
+            pin, "declare PYTHON_VERSION or Render picks the interpreter for you"
+        )
+        self.assertEqual(pin["value"], "3.11.9")
 
     def test_the_api_builds_from_the_backend_package(self):
         self.assertEqual(self.api.get("rootDir"), "backend")
@@ -191,11 +203,23 @@ class TestRenderBlueprint(unittest.TestCase):
         self.assertIn("dist", self.web.get("staticPublishPath", ""))
 
     def test_the_static_site_rewrites_deep_links_to_the_spa(self):
-        """Without this, refreshing /patient returns Render's 404 page."""
-        destinations = {
-            rewrite.get("destination") for rewrite in self.web.get("rewrites", [])
-        }
-        self.assertIn("/index.html", destinations)
+        """Without this, refreshing /patient returns Render's 404 page.
+
+        The Blueprint key is `routes`, and every entry carries an explicit
+        `type: rewrite` - the older `rewrites` list is not part of the spec.
+        """
+        routes = self.web.get("routes", [])
+        self.assertTrue(routes, "the static site must declare at least one route")
+        spa_routes = [
+            route
+            for route in routes
+            if route.get("type") == "rewrite"
+            and route.get("destination") == "/index.html"
+        ]
+        self.assertTrue(
+            spa_routes,
+            f"no route rewrites deep links to /index.html: {routes}",
+        )
 
     def test_the_static_site_builds_on_the_same_node_major_as_dev(self):
         node_version = env_var(self.web, "NODE_VERSION")
