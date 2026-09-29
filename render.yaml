@@ -74,7 +74,6 @@ services:
       # app/config.py treats it as "not configured" and falls back to SQLite
       # with a warning in the service log instead of failing obscurely.
       - key: SUPABASE_DB_PASSWORD
-        value: your-supabase-db-password
         sync: false
       # Optional - only used by the /health/supabase probe and by Storage /
       # Realtime. Not needed for reading/writing data.
