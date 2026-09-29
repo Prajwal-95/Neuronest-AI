@@ -65,7 +65,7 @@ services:
       - key: SUPABASE_DB_PORT
         value: "5432"
       - key: SUPABASE_DB_USER
-        value: postgres
+        value: postgres.pvcycmcotmkzmkreolfz
       - key: SUPABASE_DB_NAME
         value: postgres
       - key: SUPABASE_SSL_MODE
