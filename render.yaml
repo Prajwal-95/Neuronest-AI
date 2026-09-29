@@ -110,10 +110,12 @@ services:
     pullRequestPreviewsEnabled: false
     envVars:
       # Build-time value baked into the bundle (Vite inlines import.meta.env.*).
-      # Must match the neuronest-api URL - if the API service ends up as
-      # neuronest-api.onrender.com, leave as is; otherwise edit and redeploy.
+      # Must be the API service's REAL URL. Render appends a suffix when the
+      # chosen name is already taken, so neuronest-api actually serves
+      # neuronest-api-39se.onrender.com. Vite reads this at build time only:
+      # after changing it, redeploy neuronest-web.
       - key: VITE_API_URL
-        value: https://neuronest-api.onrender.com
+        value: https://neuronest-api-39se.onrender.com
       # Same major as the local dev machine (Node 22) so the build is identical.
       - key: NODE_VERSION
         value: "22"

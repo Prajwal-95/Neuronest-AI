@@ -171,7 +171,7 @@ declared in `render.yaml`; the table is what each one is for.
 
 | Variable | Value | Notes |
 |---|---|---|
-| `VITE_API_URL` | `https://neuronest-api.onrender.com` | Must be the API's URL **without a trailing slash**. |
+| `VITE_API_URL` | `https://neuronest-api-39se.onrender.com` | Must be the API service's **real** URL, **without a trailing slash**. Render suffixes taken names, so this is *not* `https://neuronest-api.onrender.com`; the URL is pinned as `PROD_API_URL` in `backend/tests/test_deploy_config.py`. |
 | `NODE_VERSION` | `22` | Same major as local dev, so the build is identical. |
 | `VITE_GOOGLE_CLIENT_ID` | *(optional)* | Only if you want Google login in production too. |
 
@@ -268,7 +268,7 @@ commit; no git surgery required.
 | Symptom | Cause → fix |
 |---|---|
 | Frontend says *"Failed to fetch"* / a CORS error in the console | `CORS_ORIGINS` on the API does not contain the static site's exact origin (scheme + host, no trailing slash). Edit the env var, save, redeploy the **API**. |
-| Requests hit `https://neuronest-api.onrender.com` and 404 | The API service has a different name/URL. Copy its real URL into `VITE_API_URL` and **redeploy the static site**. |
+| Requests hit an `*.onrender.com` API URL and 404 | `VITE_API_URL` points at a URL the API service does not serve (Render appends a suffix to taken names — here `neuronest-api-39se`). Copy the service's **Live URL** into `VITE_API_URL` and **redeploy the static site**. |
 | `502 Bad Gateway`, log says `Address already in use` or shows no listener | Start command hard-codes a port. Use `--port $PORT`. |
 | `Service Unavailable`, log ends right after `Uvicorn running on ...` | Health check points at a path that doesn't exist, or boot crashed. Read the build log; `/health` must answer. |
 | Log: `Could not prepare the database schema ... timed out` | Used the direct `db.<ref>.supabase.co` host (IPv6-only) or Supabase is paused. Use the pooler host and resume the project. |

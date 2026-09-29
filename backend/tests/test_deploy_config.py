@@ -10,12 +10,15 @@ developer laptop:
   pointed at nothing useful. The `Union[List[str], str]` annotation plus
   `_coerce_cors_origins` is what fixes it, and these tests are the regression
   net for that.
-* A Render Blueprint is a *contract*: the service names in `render.yaml`
-  determine the public URLs (`https://<name>.onrender.com`), so the CORS list on
-  the API and the build-time `VITE_API_URL` on the static site have to agree with
-  them. Renaming a service without editing those two values produces a deployed
-  app whose every request is blocked by CORS - a 3-second test beats an hour of
-  staring at "Failed to fetch".
+* A Render Blueprint is a *contract*: the CORS list on the API and the build-time
+  `VITE_API_URL` on the static site have to agree with the services' *public
+  URLs*. A service name usually gives you `https://<name>.onrender.com`, but
+  Render appends a suffix when the name is already taken - `neuronest-api`
+  actually deployed as `neuronest-api-39se.onrender.com` - so the API's real URL
+  is pinned in `PROD_API_URL` instead of being derived from the name. Getting
+  either value wrong produces a deployed app whose every request is blocked by
+  CORS or "Failed to fetch" - a 3-second test beats an hour of staring at the
+  network tab.
 
     cd backend
     ..\\venv\\Scripts\\python.exe -m pytest tests/test_deploy_config.py -v
@@ -34,6 +37,14 @@ REPO_ROOT = BACKEND_DIR.parent
 BLUEPRINT_FILE = REPO_ROOT / "render.yaml"
 
 RENDER_HOST_SUFFIX = ".onrender.com"
+
+#: The API service's real public URL. Render serves `https://<name>.onrender.com`
+#: only while that name is still free when the service is created, so
+#: `neuronest-api` came out as `neuronest-api-39se.onrender.com`. `VITE_API_URL`
+#: is baked into the frontend bundle at build time and has to point at the URL
+#: that actually answers, which is why the assertion below pins the URL itself
+#: rather than rebuilding it from the service name.
+PROD_API_URL = "https://neuronest-api-39se.onrender.com"
 
 
 def load_blueprint() -> dict:
@@ -194,8 +205,10 @@ class TestRenderBlueprint(unittest.TestCase):
         self.assertIn(f"https://neuronest-web{RENDER_HOST_SUFFIX}", allowed)
 
     def test_the_static_site_points_at_the_api_origin(self):
+        """`VITE_API_URL` is compiled into the bundle - it must be the live URL."""
         api_url = env_var(self.web, "VITE_API_URL")["value"]
-        self.assertEqual(api_url, f"https://neuronest-api{RENDER_HOST_SUFFIX}")
+        self.assertEqual(api_url, PROD_API_URL)
+        self.assertFalse(api_url.endswith("/"), "a trailing slash breaks /api paths")
 
     def test_the_static_site_publishes_dist_and_builds_with_vite(self):
         self.assertEqual(self.web.get("rootDir"), "frontend")
