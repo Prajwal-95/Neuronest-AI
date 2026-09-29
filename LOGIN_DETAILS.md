@@ -10,7 +10,7 @@ Quick reference for every demo account, its password, and what it shows.
 | # | Role | Name shown | Email | Password | What you see |
 |---|------|-----------|-------|----------|--------------|
 | 1 | 👩⚕️ **Caregiver** | Demo Caregiver | `caregiver@neuronest.demo` | `demo1234` | Dashboard, AI recommendations, patient details, reminders |
-| 2 | 👴 **Patient (English)** | Ravi Sharma | `patient@neuronest.demo` | `demo1234` | **All 3 games**, analytics, reminders |
+| 2 | 👴 **Patient (English)** | Ravi Sharma | `patient@neuronest.demo` | `demo1234` | **All 5 games**, analytics, reminders |
 | 3 | 👵 **Patient (Hindi)** | Meena Devi | `meena@neuronest.demo` | `demo1234` | Games + **हिंदी UI & voice** |
 
 ---
@@ -22,9 +22,18 @@ Quick reference for every demo account, its password, and what it shows.
 | Frontend app (login page) | **http://localhost:5173** |
 | Backend health check | http://127.0.0.1:8000/health |
 | Swagger API docs | http://127.0.0.1:8000/docs |
+| ☁️ **Deployed (Render)** | **https://neuronest-web.onrender.com** |
+| ☁️ Deployed API health | https://neuronest-api.onrender.com/health |
 
 > Open the frontend, enter any email + `demo1234`, and you're in.
 > No need to type credentials manually — the **⟷ Demo accounts** button in the top bar switches between all three instantly.
+
+> ☁️ **Judging a hosted link instead of a laptop?** The two Render URLs above are
+> the same app and the **same** demo accounts — nothing to seed, nothing to run.
+> A free Render instance sleeps after ~15 minutes idle, so the first request can
+> take ~60 s; the app then says *"the server may be waking up"* rather than
+> failing silently. Ping `/health` once before you present. Setup:
+> [`docs/RENDER_DEPLOYMENT.md`](docs/RENDER_DEPLOYMENT.md).
 
 ---
 
@@ -94,13 +103,15 @@ cd F:\Neuronest-AI\backend
 
 ---
 
-## 🎮 The 3 Games (shown to the patient)
+## 🎮 The 5 Games (shown to the patient)
 
 | Game | How it looks | URL |
 |------|-------------|-----|
 | 🃏 Memory Match | Flip cards, find matching pairs (larger board = harder) | `/patient/games/memory` |
 | 🔢 Sequence Recall | Watch a symbol sequence, repeat it in order | `/patient/games/sequence` |
 | 🎯 Attention Focus | Tap all the filled circles before time runs out | `/patient/games/attention` |
+| ➕ Quick Math | Solve simple sums under a time limit | `/patient/games/math` |
+| 📝 Word Recall | Recall a list of words shown briefly | `/patient/games/words` |
 
 Each game has **5 difficulty levels** that adapt automatically and comes with
 voice guidance (toggle under **Settings**).
@@ -148,6 +159,21 @@ cd F:\Neuronest-AI\backend
 ```
 
 Resets accounts + 3 weeks of sample analytics (same emails & password as above).
+
+---
+
+## ✅ Verify the whole stack works (with both servers running)
+
+```powershell
+cd F:\Neuronest-AI\backend
+..\venv\Scripts\python.exe tests\smoke_online.py
+```
+
+This hits the live API over HTTP and checks the full online path: health, login
+and registration, all 5 games, the adaptive engine's hysteresis, analytics,
+caregiver dashboard scoping, AI recommendations, reminders CRUD, offline session
+sync (including duplicate suppression), sync status, and role isolation. It ends
+with `RESULT: ALL CHECKS PASSED` when the prototype is functional.
 
 ---
 

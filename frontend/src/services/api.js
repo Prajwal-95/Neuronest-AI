@@ -1,4 +1,11 @@
-const API_BASE = ''  // uses Vite proxy to backend
+// In dev (vite `npm run dev`) this is empty and the Vite proxy forwards
+// /auth, /users, ... to http://127.0.0.1:8000 (see vite.config.js).
+// In production (Render) set VITE_API_URL to the backend URL, e.g.
+// https://neuronest-api.onrender.com — then all calls go there directly.
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '')
+
+/** True when pointed at a hosted API (Render) instead of the local dev proxy. */
+const IS_HOSTED = API_BASE !== ''
 
 const TOKEN_KEY = 'neuronest_token'
 
@@ -35,7 +42,16 @@ async function request(path, options = {}) {
   try {
     res = await fetch(`${API_BASE}${path}`, { ...options, headers })
   } catch (err) {
-    throw new ApiError('Network error. Check your connection.', 0)
+    // fetch only rejects on a transport failure: the API is not running, the
+    // Vite proxy has no target, or the machine is offline.
+    throw new ApiError(
+      navigator.onLine
+        ? IS_HOSTED
+          ? 'Cannot reach the NeuroNest API. The server may be waking up - free hosting takes about a minute after a period of inactivity. Try again shortly.'
+          : 'Cannot reach the NeuroNest API. Start the backend with: cd backend && ..\\venv\\Scripts\\python.exe -m uvicorn app.main:app --port 8000'
+        : 'You appear to be offline. Reconnect and try again.',
+      0
+    )
   }
 
   if (res.status === 401) {
@@ -55,8 +71,15 @@ async function request(path, options = {}) {
   }
 
   if (!res.ok) {
-    const detail =
-      typeof data?.detail === 'string'
+    // A 5xx carrying HTML (or nothing) is the dev proxy failing to reach the
+    // backend, not a real application error - say so instead of a generic line.
+    const looksLikeProxyFailure =
+      res.status >= 500 && (!data?.detail || String(data.detail).trim().startsWith('<'))
+    const detail = looksLikeProxyFailure
+      ? IS_HOSTED
+        ? 'The NeuroNest API is not responding. It may be starting up again - give it a minute and retry.'
+        : 'The NeuroNest API is not responding. Is the backend running on port 8000?'
+      : typeof data?.detail === 'string'
         ? data.detail
         : 'Request failed. Please try again.'
     throw new ApiError(detail, res.status)
