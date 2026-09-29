@@ -1,18 +1,20 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, CalendarDays, Trophy, Activity as ActivityIcon, ChevronRight } from 'lucide-react'
+import { Sparkles, CalendarDays, Trophy, Activity as ActivityIcon, ChevronRight, Heart, Star } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../auth/AuthContext'
 import { useOffline } from '../offline/OfflineContext'
 import { api } from '../services/api'
 import { useI18n } from '../services/i18n'
 import { localAnalytics } from '../offline/sessionQueue'
-import { ErrorState, EmptyState } from '../components/States'
+import { ErrorState, EmptyState, LoadingSkeleton } from '../components/States'
+import ProgressRing from '../components/ProgressRing'
 import CognitiveCore from '../three/CognitiveCore'
 import AnimatedNumber from '../animation/AnimatedNumber'
 import CognitiveJourney from '../animation/CognitiveJourney'
 import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
+import { voiceService } from '../services/voice'
 
 const GAME_INFO = {
   memory_match: { name: 'Memory Match', route: '/patient/games/memory' },
@@ -27,6 +29,17 @@ function greeting() {
   if (h < 12) return 'Good morning'
   if (h < 18) return 'Good afternoon'
   return 'Good evening'
+}
+
+/** Encouraging message based on engagement level. */
+function encouragement(stats) {
+  const score = stats?.overall_score || 0
+  const sessions = stats?.sessions_completed || 0
+  if (score >= 80) return 'Great progress! Let\'s keep your streak going.'
+  if (sessions >= 3) return 'You\'re building a strong routine!'
+  if (sessions >= 1) return 'Small challenges. Stronger habits.'
+  if (score > 0) return 'Nice work — every session counts.'
+  return 'Ready for your first gentle challenge?'
 }
 
 export default function PatientHome() {
@@ -78,14 +91,9 @@ export default function PatientHome() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-          className="w-14 h-14 rounded-2xl border-4 border-teal-200 border-t-teal-600"
-          aria-hidden="true"
-        />
-        <p className="mt-4 text-navy-600 text-lg">{tr('common.loading')}</p>
+      <div className="flex flex-col gap-6">
+        <div className="skeleton h-48 rounded-3xl" />
+        <LoadingSkeleton rows={3} />
       </div>
     )
   }
@@ -110,10 +118,15 @@ export default function PatientHome() {
   return (
     <div className="flex flex-col gap-6">
 {/* Hero: Cognitive Core + greeting + recommended activity */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 text-white border border-navy-700">
+      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy-900 via-navy-800 to-navy-700 text-white border border-navy-700 shadow-glass-lg">
         <div
           className="absolute inset-0 opacity-20"
           style={{ background: 'radial-gradient(circle at 85% 20%, rgba(75,159,222,0.55) 0%, transparent 55%)' }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{ background: 'radial-gradient(circle at 15% 80%, rgba(43,179,163,0.6) 0%, transparent 45%)' }}
           aria-hidden="true"
         />
         <div className="grid md:grid-cols-[1fr_280px] items-center gap-2 p-6 md:p-8">
@@ -124,28 +137,28 @@ export default function PatientHome() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Your cognitive garden is growing
+              ✨ {tr('home.ready')}
             </motion.p>
             <motion.h1
-              className="mt-2 text-2xl md:text-4xl font-bold"
+              className="mt-3 text-3xl md:text-5xl font-bold leading-tight"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1, duration: 0.5 }}
             >
-              {greeting()}, {user?.name?.split(' ')[0]} 👋
+              {greeting()}, <span className="text-teal-300">{user?.name?.split(' ')[0]}</span>
             </motion.h1>
             <motion.p
-              className="mt-2 text-navy-100 text-lg"
+              className="mt-3 text-navy-100 text-lg"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
             >
-              {tr('home.ready')}
+              {encouragement(stats)}
             </motion.p>
 
             {/* Recommended next activity */}
             <motion.div
-              className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 border border-white/10"
+              className="mt-6 bg-white/10 backdrop-blur-sm rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center gap-4 border border-white/10 hover:bg-white/15 transition-colors"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.5 }}
@@ -153,39 +166,56 @@ export default function PatientHome() {
               <div className="flex-1">
                 <p className="text-sm font-semibold flex items-center gap-1.5">
                   <Sparkles size={16} className="text-teal-300" aria-hidden="true" />
-                  Recommended next activity
+                  {recommendation?.reason ? tr('home.recommended') : tr('home.startToday')}
                 </p>
-                <p className="text-xl font-bold mt-0.5">{recGame.name}</p>
-                {recommendation?.reason && (
-                  <p className="text-sm text-navy-100 mt-0.5">{recommendation.reason}</p>
+                <p className="text-2xl font-bold mt-1">{recGame.name}</p>
+                {recommendation?.difficulty && (
+                  <p className="text-sm text-teal-200 font-semibold mt-0.5">
+                    Challenge Level {recommendation.difficulty}
+                  </p>
                 )}
               </div>
               <button
                 type="button"
-                className="btn-primary !bg-teal-500 !text-navy-900 hover:!bg-teal-400 shrink-0 !py-3"
-                onClick={() => navigate(recGame.route)}
+                className="btn-primary !bg-teal-500 !text-navy-900 hover:!bg-teal-400 shrink-0 !py-3 whitespace-nowrap"
+                onClick={() => {
+                  voiceService.speak(`Starting ${recGame.name}`)
+                  navigate(recGame.route)
+                }}
               >
-                Start today <ChevronRight size={18} className="inline" aria-hidden="true" />
+                {tr('games.play')} <ChevronRight size={18} className="inline" aria-hidden="true" />
               </button>
             </motion.div>
           </div>
 
           {/* 3D Cognitive Core */}
           <div className="hidden md:block">
-            <CognitiveCore height={250} />
+            <CognitiveCore height={280} />
           </div>
         </div>
       </section>
 
-      {/* Quick stats with count-up */}
+      {/* Quick stats with count-up + rings */}
       <section className="grid grid-cols-3 gap-4" aria-label="Progress summary">
+        <motion.div
+          className="card !p-4 text-center"
+          initial={{ opacity: 0, y: 14, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ delay: 0.1, duration: 0.4 }}
+          whileHover={{ y: -3 }}
+        >
+          <ProgressRing
+            value={stats.overall_score || 0}
+            size={72}
+            strokeWidth={5}
+            label={<Trophy size={24} className="text-teal-600" aria-hidden="true" />}
+          />
+          <p className="mt-2 text-2xl font-bold text-navy-800">
+            <AnimatedNumber target={stats.overall_score || 0} />
+          </p>
+          <p className="text-xs text-navy-500 leading-tight">{tr('analytics.overall')}</p>
+        </motion.div>
         <AnimatedStatCard
-          icon={<Trophy size={22} aria-hidden="true" />}
-          label={tr('analytics.overall')}
-          value={stats.overall_score || 0}
-          delay={0.1}
-        />
-<AnimatedStatCard
           icon={<ActivityIcon size={22} aria-hidden="true" />}
           label={tr('home.sessionsCompleted')}
           value={stats.sessions_completed ?? 0}

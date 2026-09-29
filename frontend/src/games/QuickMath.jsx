@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession, suggestDifficulty } from './gameEngine'
+import { buildSession, suggestDifficulty, MAX_LEVEL } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
@@ -13,12 +13,22 @@ import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
 import { useI18n } from '../services/i18n'
 
+// Ten levels. `max` = the largest operand, `ops` = which operations appear,
+// `rounds` = questions per session, `options` = how many choices are offered.
+// Multiplication and division only appear once the player is well past the
+// single-digit range, so the top levels genuinely change the KIND of
+// arithmetic rather than just making the numbers bigger.
 const LEVEL_CONFIG = {
   1: { max: 10, ops: ['+'], rounds: 5, options: 3 },
   2: { max: 15, ops: ['+'], rounds: 5, options: 3 },
   3: { max: 20, ops: ['+', '-'], rounds: 5, options: 3 },
   4: { max: 50, ops: ['+', '-'], rounds: 6, options: 4 },
   5: { max: 100, ops: ['+', '-'], rounds: 6, options: 4 },
+  6: { max: 200, ops: ['+', '-'], rounds: 7, options: 4 },
+  7: { max: 500, ops: ['+', '-'], rounds: 7, options: 4 },
+  8: { max: 1000, ops: ['+', '-'], rounds: 8, options: 4 },
+  9: { max: 12, ops: ['*'], rounds: 8, options: 4 },
+  10: { max: 20, ops: ['*', '/'], rounds: 8, options: 4 },
 }
 
 function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min }
@@ -29,9 +39,22 @@ function generateProblem(cfg) {
   if (op === '+') {
     a = randInt(1, cfg.max); b = randInt(1, cfg.max); answer = a + b
     text = a + ' + ' + b; spoken = a + ' plus ' + b
-  } else {
+  } else if (op === '-') {
     a = randInt(1, cfg.max); b = randInt(1, a); answer = a - b
     text = a + ' - ' + b; spoken = a + ' minus ' + b
+  } else if (op === '*') {
+    // `cfg.max` is the multiplication TABLE (largest factor), not the product,
+    // so the answer stays in the same range as the other offered options
+    // instead of dwarfing all three distractors.
+    a = randInt(2, cfg.max); b = randInt(2, cfg.max); answer = a * b
+    text = a + ' × ' + b; spoken = a + ' times ' + b
+  } else {
+    // Division must always be EXACT, otherwise no offered option is correct.
+    // The divisor is picked first and the quotient multiplied back out, which
+    // guarantees answer * b === a by construction.
+    b = randInt(2, cfg.max); const q = randInt(2, cfg.max)
+    a = b * q; answer = q
+    text = a + ' ÷ ' + b; spoken = a + ' divided by ' + b
   }
   const opts = new Set([answer])
   let g = 0
@@ -241,6 +264,15 @@ export default function QuickMath() {
                 : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
+          onNextLevel={
+            result.prevDifficulty < MAX_LEVEL
+              ? () => {
+                  const next = result.prevDifficulty + 1
+                  localStorage.setItem('neuronest_math_level', String(next))
+                  startGame(next)
+                }
+              : null
+          }
           onNext={() =>
             navigate('/patient/games', {
               state: { recommended: result.adaptive.recommended, gameType: 'quick_math', reason: result.adaptive.reason },

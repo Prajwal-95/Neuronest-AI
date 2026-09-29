@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { useI18n } from '../services/i18n'
 import { voiceService } from '../services/voice'
 import ActivityPortal from '../animation/ActivityPortal'
+import PreGameCheckin from '../components/PreGameCheckin'
 import { useAnimStore } from '../animation/animStore'
 
 const LEVEL_KEYS = {
@@ -22,7 +23,9 @@ const GAMES = [
     descKey: 'games.memoryDesc',
     route: '/patient/games/memory',
     icon: Grid3x3,
-    color: 'from-teal-500 to-teal-600',
+    gradientClass: 'memory',
+    levelKey: 'neuronest_memory_level',
+    duration: '2-4 min',
   },
   {
     type: 'sequence_recall',
@@ -30,7 +33,9 @@ const GAMES = [
     descKey: 'games.sequenceDesc',
     route: '/patient/games/sequence',
     icon: ListOrdered,
-    color: 'from-navy-600 to-navy-700',
+    gradientClass: 'sequence',
+    levelKey: 'neuronest_sequence_level',
+    duration: '2-3 min',
   },
   {
     type: 'attention',
@@ -38,7 +43,9 @@ const GAMES = [
     descKey: 'games.attentionDesc',
     route: '/patient/games/attention',
     icon: Crosshair,
-    color: 'from-amber-500 to-orange-600',
+    gradientClass: 'attention',
+    levelKey: 'neuronest_attention_level',
+    duration: '2-4 min',
   },
   {
     type: 'quick_math',
@@ -46,7 +53,9 @@ const GAMES = [
     descKey: 'games.mathDesc',
     route: '/patient/games/math',
     icon: Calculator,
-    color: 'from-rose-500 to-pink-600',
+    gradientClass: 'math',
+    levelKey: 'neuronest_math_level',
+    duration: '2-4 min',
   },
   {
     type: 'word_recall',
@@ -54,7 +63,9 @@ const GAMES = [
     descKey: 'games.wordsDesc',
     route: '/patient/games/words',
     icon: BookOpen,
-    color: 'from-violet-500 to-purple-600',
+    gradientClass: 'words',
+    levelKey: 'neuronest_word_level',
+    duration: '2-3 min',
   },
 ]
 
@@ -85,15 +96,49 @@ export default function GamesList() {
     navigate(game.route)
   }
 
+  // --- Pre-game wellbeing check-in ---
+  // The patient taps a game, answers 4 short caring questions (tap-only, no
+  // typing), and only then enters the game. The answers are stored locally and
+  // shown to the caregiver alongside the performance data - they are context,
+  // never a clinical judgement.
+  const [checkinFor, setCheckinFor] = useState(null)
+
+  const onPickGame = (game) => {
+    setEnergy(0.6)
+    setCheckinFor(game)
+  }
+
+  const finishCheckin = (answers) => {
+    try {
+      localStorage.setItem('neuronest_last_checkin', JSON.stringify({
+        at: new Date().toISOString(),
+        game: checkinFor?.type,
+        answers,
+      }))
+    } catch {
+      // Storage unavailable (private mode) - the game must still start.
+    }
+    startGame(checkinFor)
+  }
+
+  if (checkinFor) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PreGameCheckin onDone={finishCheckin} onSkip={() => finishCheckin({})} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-5">
       <motion.header
+        className="flex flex-col gap-1"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <h1 className="text-2xl font-bold text-navy-800">{tr('games.title')}</h1>
-        <p className="text-navy-600 mt-1">
+        <h1 className="text-3xl font-bold text-navy-800">{tr('games.title')}</h1>
+        <p className="text-navy-500 mt-0.5">
           Pick an activity. Each session adapts to your pace.
         </p>
         {voiceNote && <p className="text-teal-700 font-medium mt-1" role="status">{voiceNote}</p>}
@@ -101,27 +146,33 @@ export default function GamesList() {
 
       {recommendation && (
         <motion.section
-          className="card flex flex-col gap-2 border-teal-300 bg-mind"
+          className="card flex flex-col gap-3 border-teal-200 bg-gradient-to-br from-mind to-teal-50 shadow-glow-teal"
           role="status"
           aria-live="polite"
           initial={{ opacity: 0, x: -14 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.45 }}
         >
-          <p className="flex items-center gap-2 font-semibold text-teal-800">
-            <Sparkles size={20} aria-hidden="true" /> Recommended next activity
+          <p className="flex items-center gap-2 font-semibold text-teal-800 text-lg">
+            <Sparkles size={20} aria-hidden="true" /> {tr('home.recommended')}
           </p>
+          {recommendation.level && (
+            <span className="badge-teal self-start">
+              {tr('games.level')} {recommendation.level}
+            </span>
+          )}
           <p className="text-navy-700">{recommendation.reason}</p>
           <button
             type="button"
             className="btn-primary mt-1 self-start"
             onClick={() => {
               const target = GAMES.find((g) => g.type === recommendation.gameType) || GAMES[0]
-              startGame(target)
+              // Route through the check-in like every other entry point.
+              onPickGame(target)
             }}
           >
             {tr('games.start')} {recommendation.level
-              ? `Level ${recommendation.level}`
+              ? `${tr('games.level')} ${recommendation.level}`
               : tr(GAMES.find((g) => g.type === recommendation.gameType)?.nameKey || GAMES[0].nameKey)}
             <ChevronRight size={18} className="inline" aria-hidden="true" />
           </button>
@@ -136,9 +187,8 @@ export default function GamesList() {
             name={tr(game.nameKey)}
             description={tr(game.descKey)}
             icon={game.icon}
-            gradient={game.color}
             delay={i * 0.07}
-            onStart={startGame}
+            onStart={onPickGame}
           />
         ))}
       </section>

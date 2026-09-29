@@ -15,11 +15,15 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import LabelEncoder
 
 
-# Cognitive domains per game type
+# Cognitive domains per game type. Kept identical to
+# `analytics_service.GAME_DOMAINS` so the domain named in a recommendation
+# reason matches the domain the analytics screen reports the session under.
 GAME_DOMAIN = {
     "memory_match": "Memory",
     "sequence_recall": "Recognition",
     "attention": "Attention",
+    "quick_math": "Processing",
+    "word_recall": "Memory",
 }
 
 
@@ -100,6 +104,10 @@ class RecommendationModel:
 
     def train_on_real(self, X, y):
         """Optional future method to retrain on real patient data."""
+        if self.model is None:
+            raise RuntimeError(
+                "train_on_real called before a model exists; call train_synthetic() first."
+            )
         self._synthetic = False
         self.model.fit(X, y)
 

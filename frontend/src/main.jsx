@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import './index.css'
 import { OfflineProvider } from './offline/OfflineContext'
+import { initTheme } from './services/theme'
 
 // Apply saved accessibility settings before render
 const font = localStorage.getItem('neuronest_font') || 'medium'
@@ -11,6 +12,10 @@ document.body.classList.add(`font-${font}`)
 if (localStorage.getItem('neuronest_contrast') === 'on') {
   document.body.classList.add('high-contrast')
 }
+
+// Light/dark theme. Also applied by an inline script in index.html so there is
+// no white flash before React mounts; this call keeps them in sync.
+initTheme()
 
 // Register service worker for PWA / offline support
 if ('serviceWorker' in navigator) {

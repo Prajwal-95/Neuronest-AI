@@ -35,7 +35,11 @@
     "continueProgress": "Continue your progress",
     "weeklyProgress": "Weekly progress",
     "currentStreak": "Day streak",
-    "sessionsCompleted": "Sessions completed"
+    "sessionsCompleted": "Sessions completed",
+    "recommended": "Recommended for you",
+    "challengeLevel": "Challenge Level",
+    "todayJourney": "Today's Cognitive Journey",
+    "complete": "complete"
   },
   "games": {
     "title": "Cognitive Games",
@@ -104,7 +108,10 @@
     "wordStronger": "Your word memory is growing stronger.",
     "targetInstruction": "Find all the target symbols on the board. Focus and tap carefully!",
     "tapTarget": "Tap every {{target}} before time runs out.",
-    "cardsBrief": "Cards will appear briefly. Tap one card, then tap another to find its matching pair.",
+    "cardsBrief": "All the cards will be shown first so you can memorise them. Then tap one card, then tap another to find its matching pair.",
+    "memorise": "Memorise the cards - they turn over in {{seconds}}s",
+    "findTargets": "Find {{count}} {{target}}s",
+    "nextLevel": "Next level",
     "pairsFind": "{{pairs}} pairs · Find matching cards",
     "watchSymbols": "Watch the symbols appear. Then tap the same symbols in the same order.",
     "rememberSymbols": "Remember {{count}} symbols in order",
@@ -148,6 +155,10 @@
     "synced": "Synced",
     "savingLocally": "Saving locally",
     "syncPending": "Waiting to sync"
+  },
+  "sync": {
+    "success": "Progress synchronized",
+    "safe": "Your sessions are safe"
   },
   "demo": {
     "button": "Demo accounts",

@@ -4,12 +4,12 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, CartesianGrid,
 } from 'recharts'
-import { TrendingUp, CalendarDays, Trophy, Activity as ActivityIcon } from 'lucide-react'
+import { TrendingUp, CalendarDays, Trophy, Activity as ActivityIcon, Sparkles } from 'lucide-react'
 import { useAuth } from '../auth/AuthContext'
 import { api } from '../services/api'
 import { useI18n } from '../services/i18n'
 import { localAnalytics, getLocalHistory } from '../offline/sessionQueue'
-import { ErrorState, EmptyState } from '../components/States'
+import { ErrorState, EmptyState, LoadingSkeleton } from '../components/States'
 import AnimatedNumber from '../animation/AnimatedNumber'
 import { useSceneMode } from '../animation/useSceneMode'
 
@@ -54,8 +54,8 @@ export default function PatientAnalytics() {
 
   if (loading) {
     return (
-      <div className="card flex items-center justify-center py-16 text-navy-500">
-        <span className="text-lg">{tr('common.loading')}</span>
+      <div className="flex flex-col gap-5">
+        <LoadingSkeleton rows={4} />
       </div>
     )
   }
@@ -91,10 +91,19 @@ export default function PatientAnalytics() {
 
   return (
     <div className="flex flex-col gap-5">
-      <header>
-        <h1 className="text-2xl font-bold text-navy-800">{tr('analytics.title')}</h1>
+      <header className="flex flex-col gap-1">
+        <motion.p
+          className="text-teal-600 font-semibold text-sm uppercase tracking-[0.2em]"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+        >
+          <Sparkles size={14} className="inline mr-1" aria-hidden="true" />
+          Your progress, visualized
+        </motion.p>
+        <h1 className="text-3xl font-bold text-navy-800">{tr('analytics.title')}</h1>
         {!hasServerData && (
-          <p className="text-amber-700 text-sm font-medium mt-1">
+          <p className="text-amber-600 text-sm font-medium mt-1">
             Offline mode — showing locally saved progress.
           </p>
         )}
@@ -179,16 +188,16 @@ export default function PatientAnalytics() {
 function Kpi({ icon, label, value, suffix = '', delay = 0 }) {
   return (
     <motion.div
-      className="card !p-4 text-center"
+      className="card-hover !p-4 text-center"
       initial={{ opacity: 0, y: 14, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ delay, duration: 0.4 }}
       whileHover={{ y: -3 }}
     >
-      <span className="mx-auto w-10 h-10 rounded-xl bg-mind text-teal-700 flex items-center justify-center">
+      <span className="mx-auto w-10 h-10 rounded-2xl bg-gradient-to-br from-mind to-teal-50 text-teal-700 flex items-center justify-center">
         {icon}
       </span>
-      <p className="mt-2 text-2xl font-bold text-navy-800">
+      <p className="mt-2 text-3xl font-bold text-navy-800">
         <AnimatedNumber target={value} suffix={suffix} />
       </p>
       <p className="text-xs text-navy-500 leading-tight">{label}</p>

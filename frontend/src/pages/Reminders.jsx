@@ -5,7 +5,7 @@ import { api } from '../services/api'
 import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../services/i18n'
 import { voiceService } from '../services/voice'
-import { ErrorState, EmptyState } from '../components/States'
+import { ErrorState, EmptyState, LoadingSkeleton } from '../components/States'
 
 export default function Reminders() {
   const { user } = useAuth()
@@ -115,8 +115,8 @@ export default function Reminders() {
 
   if (loading) {
     return (
-      <div className="card flex items-center justify-center py-16 text-navy-500">
-        <span className="text-lg">{tr('common.loading')}</span>
+      <div className="flex flex-col gap-5">
+        <LoadingSkeleton rows={3} />
       </div>
     )
   }
@@ -153,12 +153,12 @@ return (
         <form onSubmit={createReminder} className="card flex flex-col gap-4 border-teal-300">
           <h2 className="font-semibold text-navy-800">Create reminder</h2>
 
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="font-medium text-navy-700">For patient</span>
             <select
               value={form.patientId}
               onChange={(e) => setForm((f) => ({ ...f, patientId: e.target.value }))}
-              className="rounded-xl border-2 border-navy-100 px-4 py-3 bg-white"
+              className="input-field"
               required
             >
               <option value="">Choose patient…</option>
@@ -170,35 +170,35 @@ return (
             </select>
           </label>
 
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="font-medium text-navy-700">Title</span>
             <input
               type="text"
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="e.g. Evening memory game"
-              className="rounded-xl border-2 border-navy-100 px-4 py-3 bg-white"
+              className="input-field"
               required
             />
           </label>
 
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="font-medium text-navy-700">Note (optional)</span>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={2}
-              className="rounded-xl border-2 border-navy-100 px-4 py-3 bg-white"
+              className="input-field"
             />
           </label>
 
-          <label className="flex flex-col gap-1">
+          <label className="flex flex-col gap-1.5">
             <span className="font-medium text-navy-700">Date & time</span>
             <input
               type="datetime-local"
               value={form.when}
               onChange={(e) => setForm((f) => ({ ...f, when: e.target.value }))}
-              className="rounded-xl border-2 border-navy-100 px-4 py-3 bg-white"
+              className="input-field"
               required
             />
           </label>

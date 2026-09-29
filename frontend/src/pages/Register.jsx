@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Brain } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useAuth } from '../auth/AuthContext'
 import { useI18n } from '../services/i18n'
 
@@ -36,25 +37,55 @@ export default function Register() {
   ]
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-10">
-      <div className="flex items-center gap-3 mb-8">
-        <span className="w-14 h-14 rounded-2xl bg-navy-800 text-teal-500 flex items-center justify-center">
-          <Brain size={32} aria-hidden="true" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold text-navy-800">NeuroNest AI</h1>
-          <p className="text-sm text-navy-600">{tr('app.tagline')}</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 relative overflow-hidden">
+      {/* Ambient background */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at 20% 15%, #16294a 0%, #0a1628 55%, #060e1a 100%)' }}
+        aria-hidden="true"
+      />
+      {/* Decorative dots */}
+      <div className="absolute inset-0 pointer-events-none opacity-30" aria-hidden="true">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-2 h-2 rounded-full bg-teal-400/60"
+            style={{ left: `${12 + i * 14}%`, top: `${18 + (i % 3) * 26}%` }}
+            animate={{ y: [0, -10, 0], opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 3.5 + i * 0.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        ))}
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="card w-full max-w-md gap-4 flex flex-col"
-        aria-label="Create account"
+      <motion.div
+        className="relative w-full max-w-md"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       >
-        <h2 className="text-xl font-semibold text-navy-800">{tr('auth.register')}</h2>
+        <div className="flex flex-col items-center gap-3 mb-8">
+          <motion.div
+            className="w-16 h-16 rounded-3xl bg-gradient-to-br from-teal-500 via-teal-600 to-navy-700 text-white flex items-center justify-center shadow-glow-teal-lg"
+            whileHover={{ scale: 1.05 }}
+          >
+            <Brain size={34} aria-hidden="true" />
+          </motion.div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-white">
+              NeuroNest <span className="text-teal-400">AI</span>
+            </h1>
+            <p className="text-sm text-navy-200 mt-1">{tr('app.tagline')}</p>
+          </div>
+        </div>
 
-        <label className="flex flex-col gap-1">
+        <form
+          onSubmit={handleSubmit}
+          className="glass-panel w-full gap-4 flex flex-col p-8 rounded-3xl"
+          aria-label={tr('auth.register')}
+        >
+          <h2 className="text-xl font-semibold text-navy-800">{tr('auth.register')}</h2>
+
+        <label className="flex flex-col gap-1.5">
           <span className="font-medium text-navy-700">{tr('auth.name')}</span>
           <input
             type="text"
@@ -62,12 +93,12 @@ export default function Register() {
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
             required
-            className="rounded-xl border-2 border-navy-100 px-4 py-3 text-lg focus:border-teal-500 bg-white"
+            className="input-field"
             placeholder="Aarti Sharma"
           />
         </label>
 
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1.5">
           <span className="font-medium text-navy-700">{tr('auth.email')}</span>
           <input
             type="email"
@@ -75,12 +106,12 @@ export default function Register() {
             onChange={(e) => setEmail(e.target.value)}
             autoComplete="email"
             required
-            className="rounded-xl border-2 border-navy-100 px-4 py-3 text-lg focus:border-teal-500 bg-white"
+            className="input-field"
             placeholder="you@example.com"
           />
         </label>
 
-        <label className="flex flex-col gap-1">
+        <label className="flex flex-col gap-1.5">
           <span className="font-medium text-navy-700">{tr('auth.password')}</span>
           <input
             type="password"
@@ -89,7 +120,7 @@ export default function Register() {
             autoComplete="new-password"
             required
             minLength={6}
-            className="rounded-xl border-2 border-navy-100 px-4 py-3 text-lg focus:border-teal-500 bg-white"
+            className="input-field"
             placeholder="At least 6 characters"
           />
         </label>
@@ -134,7 +165,8 @@ export default function Register() {
         </p>
       </form>
 
-      <p className="mt-6 text-xs text-navy-500 max-w-md text-center">{tr('disclaimer')}</p>
+      <p className="mt-6 text-xs text-navy-300 max-w-md text-center">{tr('disclaimer')}</p>
+      </motion.div>
     </div>
   )
 }

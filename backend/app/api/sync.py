@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.database.db import get_db
 from app.models.models import User, UserRole
@@ -16,7 +16,6 @@ def sync_pending_sessions(
     db: Session = Depends(get_db),
 ):
     if current_user.role != UserRole.PATIENT:
-        from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Only patients can sync sessions")
     synced, duplicates, failed = sync_sessions(db, current_user.id, data.sessions)
     return SyncResponse(

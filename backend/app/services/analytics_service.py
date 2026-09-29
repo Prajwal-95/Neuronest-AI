@@ -2,7 +2,6 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any
 from sqlalchemy.orm import Session
 from app.models.models import GameSession, User
-from app.ml.adaptive_engine import compute_performance_score
 
 
 GAME_DOMAINS = {
@@ -132,6 +131,18 @@ def build_patient_analytics(db: Session, patient_id: int) -> Dict[str, Any]:
 
 
 def recent_scores_for_patient(db: Session, patient_id: int) -> List[float]:
+    """Return the patient's most recent session scores in CHRONOLOGICAL order
+    (oldest first, newest last).
+
+    Every caller depends on that ordering:
+      * `adaptive_engine` counts consecutive strong sessions with
+        `reversed(recent_scores[-5:])`, i.e. it walks backwards from the end.
+      * `compute_performance_score` treats `recent_scores[0]` as oldest and
+        `recent_scores[-1]` as newest for the improvement term.
+      * `recommendation_service` splits the list into a first and second half.
+    Returning newest-first here inverts the improvement feature and makes the
+    hysteresis check count the *oldest* sessions instead of the newest.
+    """
     sessions = (
         db.query(GameSession)
         .filter(GameSession.patient_id == patient_id)
@@ -139,4 +150,4 @@ def recent_scores_for_patient(db: Session, patient_id: int) -> List[float]:
         .limit(5)
         .all()
     )
-    return [s.score for s in sessions if s.score is not None]
+    return [s.score for s in reversed(sessions) if s.score is not None]

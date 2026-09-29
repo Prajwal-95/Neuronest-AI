@@ -49,6 +49,13 @@ pnpm-debug.log*
 *.sqlite3
 backend/neuronest.db
 
+# ---- Local dev server logs ----
+*.log
+uvicorn.out.log
+uvicorn.err.log
+vite.out.log
+vite.err.log
+
 # ---- OS / Editor ----
 .DS_Store
 Thumbs.db

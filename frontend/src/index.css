@@ -4,24 +4,29 @@
 
 :root {
   font-family: 'Inter', system-ui, sans-serif;
-  /* 3D animation tokens */
   --nx-teal: #2bb3a3;
   --nx-teal-soft: #4fd1c5;
   --nx-navy: #0f1f3d;
   --nx-violet: #8b7fd6;
+  --nx-surface: #ffffff;
+  --nx-border: #e8edf3;
+  --nx-text-primary: #0f1f3d;
+  --nx-text-secondary: #5e7290;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
-  background-color: #faf9f5;
-  color: #16294a;
+  background-color: #f4f6fa;
+  color: #0f1f3d;
+  -webkit-font-smoothing: antialiased;
 }
 
-/* High contrast mode supported via .high-contrast class */
+/* High contrast mode */
 .high-contrast body,
 body.high-contrast {
   background: #000;
@@ -32,27 +37,17 @@ body.high-contrast {
   border: 2px solid #fff !important;
 }
 
-/* Text size modes */
-body.font-small {
-  font-size: 90%;
-}
-body.font-medium {
-  font-size: 100%;
-}
-body.font-large {
-  font-size: 120%;
-}
-body.font-xlarge {
-  font-size: 140%;
-}
+body.font-small { font-size: 90%; }
+body.font-medium { font-size: 100%; }
+body.font-large { font-size: 120%; }
+body.font-xlarge { font-size: 140%; }
 
-/* Focus states for accessibility */
-:focus {
-  outline: 3px solid #2bb3a3;
+:focus-visible {
+  outline: 3px solid var(--nx-teal);
   outline-offset: 2px;
+  border-radius: 8px;
 }
 
-/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;
@@ -61,15 +56,187 @@ body.font-xlarge {
   .neural-tilt { transform: none !important; }
 }
 
+/* ===== Design System ===== */
 .btn-primary {
-  @apply bg-teal-600 text-white font-semibold rounded-xl px-6 py-4 hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply bg-gradient-to-r from-teal-600 to-teal-500 text-white font-semibold rounded-2xl px-7 py-4
+    shadow-glow-teal hover:shadow-glow-teal-lg hover:from-teal-700 hover:to-teal-600
+    transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed
+    disabled:shadow-none min-h-[48px] text-lg;
 }
 .btn-secondary {
-  @apply bg-white text-navy-700 font-semibold rounded-xl px-6 py-4 border-2 border-navy-100 hover:border-teal-500 transition-colors;
+  @apply bg-white text-navy-700 font-semibold rounded-2xl px-7 py-4
+    border-2 border-navy-100 hover:border-teal-400 hover:bg-teal-50/50
+    transition-all duration-200 active:scale-[0.97] min-h-[48px] text-lg;
+}
+.btn-ghost {
+  @apply text-navy-600 font-medium rounded-xl px-4 py-2
+    hover:bg-navy-50 transition-all duration-200 active:scale-[0.97] min-h-[44px];
+}
+.btn-icon {
+  @apply rounded-xl p-3 hover:bg-navy-50 transition-all duration-200 active:scale-95 min-h-[44px] min-w-[44px]
+    flex items-center justify-center;
 }
 .card {
-  @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+  @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-glass border border-white/60 p-6 transition-all duration-300;
 }
+.card-hover {
+  @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-glass border border-white/60 p-6
+    hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300;
+}
+.glass-panel {
+  @apply bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-glass;
+}
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-600 to-teal-400;
+}
+.badge {
+  @apply inline-flex items-center gap-1.5 text-xs font-bold rounded-full px-3 py-1;
+}
+.badge-teal {
+  @apply bg-teal-50 text-teal-700 border border-teal-200;
+}
+.input-field {
+  @apply rounded-2xl border-2 border-navy-100/80 bg-white px-5 py-3.5 text-lg
+    placeholder:text-navy-300 transition-all duration-200
+    focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 focus:outline-none;
+}
+
+/* ===== 3D CSS helpers ===== */
+/* ===== Glass buttons =====
+   Every button is a frosted "slab". Each FUNCTION gets its own colour so the
+   meaning is readable at a glance without reading the label:
+     primary   = the main action you want the user to take (teal)
+     secondary = a safe alternative                     (indigo)
+     success   = confirm / keep / generate a good thing (emerald)
+     warning   = change something, use caution           (amber)
+     danger    = delete / destructive / irreversible    (rose)
+     info      = neutral, non-committal                 (sky)
+*/
+.glass-btn {
+  @apply relative inline-flex items-center justify-center gap-2 font-semibold
+    rounded-2xl px-6 py-3.5 min-h-[48px] text-base
+    backdrop-blur-xl border border-white/40
+    shadow-[0_8px_24px_-10px_rgba(15,31,61,0.45)]
+    transition-all duration-200 active:scale-[0.97]
+    disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none;
+}
+/* Bright inner sheen, the "slab" highlight. */
+.glass-btn::before {
+  content: '';
+  @apply absolute inset-0 rounded-2xl pointer-events-none;
+  background: linear-gradient(160deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.05) 45%, transparent 100%);
+}
+.glass-btn > * { @apply relative; }
+
+.glass-btn-primary   { @apply text-white bg-gradient-to-br from-teal-500/90 to-teal-600/90; }
+.glass-btn-secondary { @apply text-indigo-50 bg-gradient-to-br from-indigo-500/85 to-indigo-600/85; }
+.glass-btn-success   { @apply text-emerald-50 bg-gradient-to-br from-emerald-500/90 to-emerald-600/90; }
+.glass-btn-warning   { @apply text-amber-950 bg-gradient-to-br from-amber-300/95 to-amber-400/95; }
+.glass-btn-danger    { @apply text-white bg-gradient-to-br from-rose-500/90 to-rose-600/90; }
+.glass-btn-info      { @apply text-sky-50 bg-gradient-to-br from-sky-500/85 to-sky-600/85; }
+
+.glass-btn:hover:not(:disabled) { transform: translateY(-2px); }
+.glass-btn-primary:hover:not(:disabled)   { @apply from-teal-500 to-teal-600 shadow-[0_14px_34px_-12px_rgba(20,184,166,0.85)]; }
+.glass-btn-secondary:hover:not(:disabled) { @apply from-indigo-500 to-indigo-600 shadow-[0_14px_34px_-12px_rgba(99,102,241,0.8)]; }
+.glass-btn-success:hover:not(:disabled)   { @apply from-emerald-500 to-emerald-600 shadow-[0_14px_34px_-12px_rgba(16,185,129,0.85)]; }
+.glass-btn-warning:hover:not(:disabled)   { @apply from-amber-300 to-amber-400 shadow-[0_14px_34px_-12px_rgba(251,191,36,0.85)]; }
+.glass-btn-danger:hover:not(:disabled)    { @apply from-rose-500 to-rose-600 shadow-[0_14px_34px_-12px_rgba(244,63,94,0.85)]; }
+.glass-btn-info:hover:not(:disabled)      { @apply from-sky-500 to-sky-600 shadow-[0_14px_34px_-12px_rgba(14,165,233,0.85)]; }
+
+/* ===== Dark mode =====
+   Class-based (Tailwind darkMode: 'class'). Palette is a deep navy rather
+   than pure black: less glare, and it keeps the teal accents readable.
+*/
+.dark body { background-color: #0b1220; color: #e6edf7; }
+
+.dark .card,
+.dark .card-hover {
+  @apply bg-slate-900/70 border-slate-700/60 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)];
+}
+.dark .glass-panel { @apply bg-slate-900/60 border-slate-700/50; }
+.dark .input-field { @apply bg-slate-900/80 border-slate-700 text-slate-100 placeholder:text-slate-500; }
+.dark .btn-secondary { @apply bg-slate-800/80 text-slate-100 border-slate-600; }
+.dark .btn-ghost { @apply text-slate-300 hover:bg-slate-800; }
+.dark .btn-icon { @apply text-slate-300 hover:bg-slate-800; }
+.dark .badge-teal { @apply bg-teal-500/15 text-teal-300 border-teal-500/30; }
+.dark .skeleton { @apply bg-slate-800; }
+.dark .text-gradient { @apply from-teal-400 to-teal-300; }
+/* Map the light-theme text tokens onto dark equivalents in one place, so new
+   components automatically read correctly in dark mode. */
+.dark .text-navy-800, .dark .text-navy-700, .dark .text-navy-600 { @apply text-slate-100; }
+.dark .text-navy-500, .dark .text-navy-400 { @apply text-slate-400; }
+.dark .bg-mind, .dark .bg-white { @apply bg-slate-800/60; }
+.dark .border-navy-100, .dark .border-navy-50 { @apply border-slate-700/70; }
+.dark .divide-navy-50 > * { @apply border-slate-700/60; }
+.dark .grid-pattern {
+  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+}
+.dark ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.28); }
+.dark ::selection { background: rgba(45,212,191,0.3); color: #e6edf7; }
+
+.preserve-3d { transform-style: preserve-3d; }
+.backface-hidden { backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.rotate-y-180 { transform: rotateY(180deg); }
+.flip-card { perspective: 1000px; }
+.flip-inner {
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1);
+  position: relative; width: 100%; height: 100%;
+}
+.flip-inner.flipped { transform: rotateY(180deg); }
+.flip-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.flip-back { transform: rotateY(180deg); }
+
+.neural-tilt {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.neural-tilt:hover {
+  transform: perspective(700px) rotateX(2deg) rotateY(-2deg) translateY(-6px);
+  box-shadow: 0 24px 48px -16px rgba(15, 31, 61, 0.25);
+}
+
+@keyframes nx-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.nx-float { animation: nx-float 5s ease-in-out infinite; }
+
+@keyframes nx-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(43,179,163,0.35); } 50% { box-shadow: 0 0 22px 6px rgba(43,179,163,0.35); } }
+.nx-glow { animation: nx-glow 3s ease-in-out infinite; }
+
+.nx-connector { stroke-dasharray: 120; stroke-dashoffset: 120; animation: nx-draw 1.2s ease forwards; }
+@keyframes nx-draw { to { stroke-dashoffset: 0; } }
+
+.nx-progress-fill {
+  background: linear-gradient(90deg, #2bb3a3, #4fd1c5, #2bb3a3);
+  background-size: 200% 100%;
+  animation: nx-shimmer 2.4s linear infinite;
+}
+@keyframes nx-shimmer { to { background-position: -200% 0; } }
+
+.skeleton { @apply bg-navy-100/60 rounded-xl animate-pulse; }
+
+.game-gradient-memory { background: linear-gradient(135deg, #0d9488 0%, #14b8a6 50%, #2dd4bf 100%); }
+.game-gradient-sequence { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 50%, #60a5fa 100%); }
+.game-gradient-attention { background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%); }
+.game-gradient-math { background: linear-gradient(135deg, #dc2626 0%, #f43f5e 50%, #fb7185 100%); }
+.game-gradient-words { background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%); }
+
+.grid-pattern {
+  background-image: linear-gradient(rgba(15, 31, 61, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 31, 61, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(15, 31, 61, 0.12); border-radius: 3px; }
+
+::selection { background: rgba(43, 179, 163, 0.2); color: #0f1f3d; }
+
+.nx-attention-target { transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
 
 /* ===== 3D CSS helpers ===== */
 

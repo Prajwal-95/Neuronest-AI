@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, CloudUpload } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { useAnimStore } from './animStore'
+import { useI18n } from '../services/i18n'
 
 /**
  * Shows a brief "Progress synchronized" toast whenever a pending offline
@@ -9,6 +10,7 @@ import { useAnimStore } from './animStore'
  */
 export default function SyncToast() {
   const syncPulse = useAnimStore((s) => s.syncPulse)
+  const { tr } = useI18n()
   const [show, setShow] = useState(false)
 
   useEffect(() => {
@@ -30,7 +32,7 @@ export default function SyncToast() {
           role="status"
           aria-live="polite"
         >
-          <div className="flex items-center gap-3 bg-navy-800 text-white rounded-2xl px-5 py-3 shadow-2xl border border-teal-400/30">
+          <div className="flex items-center gap-3 bg-navy-800 text-white rounded-2xl px-5 py-3.5 shadow-2xl border border-teal-400/30">
             <motion.span
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
@@ -39,10 +41,8 @@ export default function SyncToast() {
               <CheckCircle2 size={22} className="text-teal-400" aria-hidden="true" />
             </motion.span>
             <div>
-              <p className="font-semibold">Progress synchronized</p>
-              <p className="text-xs text-navy-200 flex items-center gap-1">
-                <CloudUpload size={12} aria-hidden="true" /> Your sessions are safe
-              </p>
+              <p className="font-semibold">{tr('sync.success')}</p>
+              <p className="text-xs text-navy-200">{tr('sync.safe')}</p>
             </div>
           </div>
         </motion.div>

@@ -1,16 +1,15 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import { Loader2 } from 'lucide-react'
+import { BrandedLoader } from '../components/States'
 
 export default function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth()
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-navy-700">
-        <Loader2 className="animate-spin" size={40} aria-hidden="true" />
-        <p className="text-lg font-medium">Loading…</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <BrandedLoader message="Preparing your cognitive space..." />
       </div>
     )
   }

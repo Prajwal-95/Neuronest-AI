@@ -6,6 +6,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f1f3d" />
     <title>NeuroNest AI</title>
+    <!--
+      Apply the saved light/dark theme BEFORE the app bundle loads. Without
+      this, a dark-mode user sees a white flash on every page load because
+      React has not mounted yet. Mirrors services/theme.js.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('neuronest_theme');
+          var dark = stored === 'dark' || stored === 'light'
+            ? stored === 'dark'
+            : window.matchMedia('(prefers-color-scheme: dark)').matches;
+          document.documentElement.classList.toggle('dark', dark);
+          document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        } catch (e) { /* private mode / storage blocked - fall back to light */ }
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

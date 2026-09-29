@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Volume2, Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession, suggestDifficulty } from './gameEngine'
+import { buildSession, suggestDifficulty, MAX_LEVEL } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
@@ -14,12 +14,37 @@ import { useAnimStore } from '../animation/animStore'
 import { useI18n } from '../services/i18n'
 
 // Level config: total objects, target count, distractor pool, time limit (s)
+// Ten levels.
+//
+// `objects` tops out at 30. The column formula below yields at most 8 columns,
+// so anything above 32 objects spills into a 5th row - and the board is
+// deliberately held to FOUR rows or fewer, because that is what keeps each tile
+// at a size an older adult can reliably tap. Difficulty therefore comes from
+// MORE TARGETS and a LOWER TIME-PER-OBJECT, not from an ever-taller board.
+//
+// `timeLimit` declines gently rather than the steep 60 -> 35 drop the old five
+// levels used: the board also grows (12 -> 30 objects), so what makes a level
+// harder is the lower time-per-object. Every limit stays above 35s, the
+// minimum that still lets an older adult find and tap every target.
 const LEVEL_CONFIG = {
   1: { objects: 12, targets: 5, distractors: ['▲', '★', '■'], timeLimit: 60 },
-  2: { objects: 16, targets: 6, distractors: ['▲', '★', '■', '◆'], timeLimit: 50 },
-  3: { objects: 20, targets: 7, distractors: ['▲', '★', '○', '■'], timeLimit: 45 },
-  4: { objects: 24, targets: 8, distractors: ['◉', '◍', '○', '▲', '★'], timeLimit: 40 },
-  5: { objects: 28, targets: 9, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 35 },
+  2: { objects: 14, targets: 6, distractors: ['▲', '★', '■', '◆'], timeLimit: 55 },
+  3: { objects: 16, targets: 7, distractors: ['▲', '★', '○', '■'], timeLimit: 50 },
+  4: { objects: 18, targets: 8, distractors: ['◉', '◍', '○', '▲', '★'], timeLimit: 47 },
+  5: { objects: 20, targets: 9, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 45 },
+  6: { objects: 22, targets: 10, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 43 },
+  7: { objects: 24, targets: 11, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 41 },
+  8: { objects: 26, targets: 12, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 39 },
+  9: { objects: 28, targets: 13, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 37 },
+  10: { objects: 30, targets: 14, distractors: ['◉', '◍', '◐', '○', '◎'], timeLimit: 36 },
+}
+
+// Columns for a board: at most 8, at least 4, growing so the grid never
+// exceeds four rows (see the note above). The previous expression was
+// `min(8, ceil(sqrt(objects)))`, which stacked the larger levels into 5-7 rows
+// and shrank the tiles below a comfortable tap target.
+function boardCols(objects) {
+  return Math.min(8, Math.max(4, Math.ceil(objects / 4)))
 }
 
 const TARGET = '●'
@@ -223,7 +248,7 @@ export default function Attention() {
 
           <div
             className="grid gap-3"
-            style={{ gridTemplateColumns: `repeat(${Math.min(8, Math.ceil(Math.sqrt(cfg.objects)))}, minmax(0,1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${boardCols(cfg.objects)}, minmax(0,1fr))` }}
             role="group"
             aria-label="Attention symbol grid"
           >
@@ -308,6 +333,15 @@ export default function Attention() {
                 : tr('games.focusGreat'),
           }}
           onPlayAgain={startGame}
+          onNextLevel={
+            result.prevDifficulty < MAX_LEVEL
+              ? () => {
+                  const next = result.prevDifficulty + 1
+                  localStorage.setItem('neuronest_attention_level', String(next))
+                  startGame(next)
+                }
+              : null
+          }
           onNext={() =>
             navigate('/patient/games', {
               state: {

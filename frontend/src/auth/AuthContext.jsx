@@ -7,6 +7,12 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [authConfig, setAuthConfig] = useState({ google_enabled: false, demo_enabled: true })
+
+  useEffect(() => {
+    // Which login buttons to show (Google button needs backend GOOGLE_CLIENT_ID).
+    api.get('/auth/config').then(setAuthConfig).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!getToken()) {
@@ -64,6 +70,19 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const loginWithGoogle = async (idToken, role = 'patient') => {
+    setError('')
+    try {
+      const data = await api.post('/auth/google', { id_token: idToken, role })
+      setToken(data.access_token)
+      setUser(data.user)
+      return data.user
+    } catch (err) {
+      setError(err.message || 'Google sign-in failed')
+      throw err
+    }
+  }
+
   const logout = () => {
     clearToken()
     setUser(null)
@@ -71,7 +90,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, error, login, register, logout, setUser }}
+      value={{ user, loading, error, login, loginWithGoogle, register, logout, setUser, authConfig }}
     >
       {children}
     </AuthContext.Provider>

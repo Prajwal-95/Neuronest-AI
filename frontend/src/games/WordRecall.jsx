@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession, suggestDifficulty } from './gameEngine'
+import { buildSession, suggestDifficulty, MAX_LEVEL } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
@@ -13,20 +13,40 @@ import { useSceneMode } from '../animation/useSceneMode'
 import { useAnimStore } from '../animation/animStore'
 import { useI18n } from '../services/i18n'
 
+// Ten levels. `count` = words to remember, `showMs` = how long they stay on
+// screen, `options` = how many choices are offered (targets + distractors).
+// `count` can never exceed `options`, or the player would be asked to select
+// more words than are actually on screen.
 const LEVEL_CONFIG = {
   1: { count: 3, showMs: 3000, options: 6 },
   2: { count: 4, showMs: 2500, options: 7 },
   3: { count: 5, showMs: 2500, options: 8 },
   4: { count: 6, showMs: 2000, options: 9 },
   5: { count: 7, showMs: 2000, options: 10 },
+  6: { count: 8, showMs: 1800, options: 12 },
+  7: { count: 9, showMs: 1800, options: 14 },
+  8: { count: 10, showMs: 1600, options: 16 },
+  9: { count: 11, showMs: 1600, options: 18 },
+  10: { count: 12, showMs: 1500, options: 20 },
 }
 
+// Word pools grown to 20 DISTINCT entries each. Level 10 needs 12 targets plus
+// 8 distractors drawn from the same pool, and the original 10-word pools could
+// not supply that - they would have shown fewer choices than the level
+// advertised. Every word is unique within its pool: a duplicate would let the
+// player tap the same word twice while the counter still expected two
+// different answers.
 const WORD_POOLS = [
-  ['apple', 'house', 'table', 'river', 'garden', 'window', 'pencil', 'bridge', 'chair', 'flower'],
-  ['morning', 'candle', 'kettle', 'basket', 'blanket', 'bottle', 'carpet', 'lantern', 'village', 'guitar'],
-  ['gentle', 'wisdom', 'memory', 'family', 'simple', 'kindness', 'comfort', 'harmony', 'journey', 'spirit'],
-  ['sunrise', 'pebble', 'breeze', 'harbor', 'meadow', 'feather', 'shelter', 'lantern', 'kindred', 'mellow'],
-  ['comfort', 'promise', 'shelter', 'treasure', 'whisper', 'graceful', 'blossom', 'silence', 'courage', 'wonder'],
+  ['apple', 'house', 'table', 'river', 'garden', 'window', 'pencil', 'bridge', 'chair', 'flower',
+   'mirror', 'basket', 'candle', 'ladder', 'harbour', 'pillow', 'shovel', 'tunnel', 'violin', 'wallet'],
+  ['morning', 'kettle', 'blanket', 'bottle', 'carpet', 'lantern', 'village', 'guitar', 'cushion', 'drawer',
+   'engine', 'fabric', 'granary', 'hammer', 'island', 'jungle', 'locket', 'mantle', 'needle', 'orchard'],
+  ['gentle', 'wisdom', 'family', 'simple', 'kindness', 'comfort', 'harmony', 'journey', 'spirit', 'bright',
+   'calm', 'dream', 'energy', 'faith', 'grace', 'honest', 'ideal', 'joyful', 'keen', 'lively'],
+  ['sunrise', 'pebble', 'breeze', 'harbor', 'meadow', 'feather', 'kindred', 'mellow', 'twilight', 'ripple',
+   'shadow', 'thunder', 'willow', 'zephyr', 'coral', 'ember', 'frost', 'glimmer', 'horizon', 'lagoon'],
+  ['promise', 'treasure', 'whisper', 'graceful', 'blossom', 'silence', 'courage', 'wonder', 'echo', 'fable',
+   'glory', 'harvest', 'ivory', 'jubilee', 'kindle', 'legacy', 'marvel', 'nurture', 'origin', 'pilgrim'],
 ]
 
 function pickWords(count, pool) {
@@ -262,6 +282,15 @@ export default function WordRecall() {
                 : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
+          onNextLevel={
+            result.prevDifficulty < MAX_LEVEL
+              ? () => {
+                  const next = result.prevDifficulty + 1
+                  localStorage.setItem('neuronest_word_level', String(next))
+                  startGame(next)
+                }
+              : null
+          }
           onNext={() =>
             navigate('/patient/games', {
               state: { recommended: result.adaptive.recommended, gameType: 'word_recall', reason: result.adaptive.reason },

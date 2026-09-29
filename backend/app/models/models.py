@@ -18,10 +18,19 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
+    # Nullable: Google-OAuth accounts never set a local password. Password logins
+    # must therefore reject a None hash instead of crashing (see auth.py).
+    password_hash = Column(String, nullable=True)
     role = Column(Enum(UserRole), nullable=False)
     language = Column(String, default="en")
     created_at = Column(DateTime, default=datetime.utcnow)
+    # --- Google / OAuth -----------------------------------------------------
+    # `google_sub` is the stable Google `sub` claim for the account. Unique when
+    # present, NULL for pure email/password accounts.
+    google_sub = Column(String, unique=True, index=True, nullable=True)
+    # "local" | "google" — how the account was created / last signed in.
+    auth_provider = Column(String, default="local", nullable=False)
+    avatar_url = Column(String, nullable=True)
 
     # Relationships
     caregiver_links = relationship(

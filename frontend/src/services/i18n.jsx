@@ -8,7 +8,13 @@ const messages = {
 }
 
 export function I18nProvider({ children }) {
-  const [lang, setLang] = useState(() => localStorage.getItem('neuronest_lang') || 'en')
+  // English is the default. Only a previously stored, VALID choice ('hi') is
+  // honoured, so a corrupt/legacy value can never leave the UI blank or stuck
+  // on a non-English locale.
+  const [lang, setLang] = useState(() => {
+    const stored = localStorage.getItem('neuronest_lang')
+    return stored === 'hi' || stored === 'en' ? stored : 'en'
+  })
   const [t, setT] = useState({})
 
   useEffect(() => {

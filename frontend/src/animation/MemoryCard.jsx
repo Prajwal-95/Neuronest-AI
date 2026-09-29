@@ -45,7 +45,7 @@ export default function MemoryCard({
         disabled={disabled || isFlipped || isMatched}
         aria-label={ariaLabel}
         aria-pressed={isFlipped}
-        className={`aspect-square min-h-[60px] rounded-xl border-2 text-4xl md:text-5xl flex items-center justify-center transition-colors ${
+        className={`aspect-square min-h-[52px] w-full rounded-xl border-2 text-4xl md:text-5xl flex items-center justify-center transition-colors ${
           isMatched
             ? 'bg-teal-100 border-teal-500 text-teal-700'
             : isFlipped
@@ -79,15 +79,16 @@ export default function MemoryCard({
           disabled={disabled || isFlipped || isMatched}
           aria-label={ariaLabel}
           aria-pressed={isFlipped}
-          className={`flip-inner aspect-square min-h-[60px] w-full rounded-xl ${isFlipped || isMatched ? 'flipped' : ''}`}
+          className={`flip-inner aspect-square min-h-[52px] w-full rounded-xl ${isFlipped || isMatched ? 'flipped' : ''}`}
         >
           {/* Front face: hidden card back */}
-          <span className="flip-face rounded-xl border-2 border-navy-700 bg-gradient-to-br from-navy-700 to-navy-600 text-white text-3xl md:text-4xl shadow-lg">
+          <span className="flip-face rounded-xl border-2 border-navy-700 bg-gradient-to-br from-navy-700 to-navy-600 text-white text-2xl md:text-3xl shadow-lg">
             ❓
           </span>
-          {/* Back face: symbol */}
+          {/* Back face: symbol. Sized as a large share of the (now smaller)
+              card so it stays legible for older players. */}
           <span
-            className={`flip-face flip-back rounded-xl border-2 text-4xl md:text-5xl ${
+            className={`flip-face flip-back rounded-xl border-2 text-4xl md:text-[2.75rem] leading-none ${
               isMatched
                 ? 'bg-teal-100 border-teal-500 text-teal-700 nx-glow'
                 : 'bg-white border-navy-300 text-navy-800'

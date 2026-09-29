@@ -64,8 +64,9 @@ export async function clearSynced() {
 export async function getLocalHistory(gameType) {
   const all = await db.sessions.toArray()
   return all
-    .filter((r) => r.status === 'synced' || true) // keep all locally
-    .sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
+    // `.sort((a, b) => a.created_at > b.created_at ? -1 : 1)` here never matched
+    // equal timestamps; use a numeric comparison so ordering is a real total order.
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .filter((r) => (gameType ? r.game_type === gameType : true))
     .slice(0, 30)
     .map((r) => r.data)

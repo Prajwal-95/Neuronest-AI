@@ -28,3 +28,38 @@ export function EmptyState({ icon: Icon, title, message, action }) {
     </div>
   )
 }
+
+/**
+ * Premium loading skeleton for dashboard data.
+ */
+export function LoadingSkeleton({ rows = 3, className = '' }) {
+  return (
+    <div className={`flex flex-col gap-3 ${className}`} aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="skeleton h-16 rounded-2xl" style={{ animationDelay: `${i * 0.1}s` }} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Full-screen branded loading state.
+ */
+export function BrandedLoader({ message }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 text-center">
+      <div className="relative w-16 h-16 mb-6">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-600 animate-glow-pulse" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 2a5 5 0 0 1 5 5v3a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5Z" />
+            <path d="M9 14v2a3 3 0 0 0 6 0v-2" />
+          </svg>
+        </div>
+      </div>
+      <p className="text-navy-600 text-lg font-medium">{message || 'Preparing your space...'}</p>
+    </div>
+  )
+}
+
+export default LoadingSkeleton

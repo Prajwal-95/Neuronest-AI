@@ -16,6 +16,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Without this Vite binds IPv6-only ([::1]) and http://127.0.0.1:5173 is
+    // refused, which breaks the proxy target and any 127.0.0.1 link the user
+    // types. `host: true` listens on both stacks.
+    host: true,
+    strictPort: true,
     proxy: {
       '/auth': 'http://127.0.0.1:8000',
       '/users': 'http://127.0.0.1:8000',

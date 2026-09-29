@@ -32,7 +32,9 @@ const DEMO_ACCOUNTS = [
     email: 'meena@neuronest.demo',
     nameKey: 'demo.meena',
     route: '/patient',
-    lang: 'hi',
+    // English by default. Hindi is opt-in via Settings -> Language; a demo
+    // account must not silently switch the whole UI language on sign-in.
+    lang: 'en',
     avatarClass: 'bg-amber-100 text-amber-700',
   },
 ]
@@ -111,11 +113,18 @@ export default function RoleSwitcher() {
         <div
           role="menu"
           aria-label={tr('demo.title')}
-          className="absolute right-0 top-full mt-2 z-30 w-72 overflow-hidden rounded-2xl border border-navy-100 bg-white text-navy-800 shadow-xl"
+          className="absolute right-0 top-full mt-2 z-30 w-72 overflow-hidden rounded-2xl border border-navy-100 bg-white text-navy-800 shadow-xl dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
         >
-          <div className="border-b border-navy-100 bg-mind px-4 py-3">
-            <p className="text-sm font-semibold text-teal-800">{tr('demo.title')}</p>
-            <p className="text-xs text-navy-500">{tr('demo.subtitle')}</p>
+          {/* Every colour here is overridden explicitly. The global dark-mode
+              remap in index.css turns .bg-white translucent (bg-slate-800/60)
+              and .text-navy-800 near-white, but leaves bg-teal-50 light - which
+              rendered the ACTIVE caregiver row as white text on a light teal
+              band, and let the page show through the panel behind it. */}
+          <div className="border-b border-navy-100 bg-mind px-4 py-3 dark:border-slate-600 dark:bg-slate-700/60">
+            <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
+              {tr('demo.title')}
+            </p>
+            <p className="text-xs text-navy-500 dark:text-slate-300">{tr('demo.subtitle')}</p>
           </div>
 
           {DEMO_ACCOUNTS.map((acc) => {
@@ -127,8 +136,10 @@ export default function RoleSwitcher() {
                 role="menuitem"
                 onClick={() => switchTo(acc)}
                 disabled={busy !== null}
-                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-navy-50 disabled:opacity-60 ${
-                  active ? 'bg-teal-50' : ''
+                className={`flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-navy-50 disabled:opacity-60 dark:hover:bg-slate-700/60 ${
+                  active
+                    ? 'bg-teal-50 ring-1 ring-inset ring-teal-200 dark:bg-teal-500/20 dark:ring-teal-400/40'
+                    : ''
                 }`}
               >
                 <span
@@ -138,7 +149,9 @@ export default function RoleSwitcher() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{tr(acc.nameKey)}</span>
-                  <span className="block truncate text-xs text-navy-500">{acc.email}</span>
+                  <span className="block truncate text-xs text-navy-500 dark:text-slate-300">
+                    {acc.email}
+                  </span>
                 </span>
                 {busy === acc.key ? (
                   <Loader2 size={18} className="animate-spin text-teal-600" aria-hidden="true" />

@@ -20,9 +20,18 @@ export const GAME_TYPES = {
   word_recall: 'word_recall',
 }
 
+// Difficulty bounds. Ten levels per game. The backend engine uses the same
+// numbers (app/ml/adaptive_engine.py) - the two MUST stay in sync or a session
+// raises a level locally and lowers it again once synced.
+export const MIN_LEVEL = 1
+export const MAX_LEVEL = 10
+
 // Expected response time base (seconds) per difficulty — used for
 // response-efficiency scoring.
-const EXPECTED_RESPONSE = { 1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0 }
+const EXPECTED_RESPONSE = {
+  1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0,
+  6: 9.0, 7: 10.0, 8: 11.0, 9: 12.0, 10: 13.0,
+}
 
 function clamp01(v) {
   return Math.max(0, Math.min(1, v))
@@ -124,6 +133,14 @@ export function buildSession({
 /**
  * Adaptive difficulty suggestion using the same deterministic rules as the
  * backend engine (kept client-side for instant offline recommendations).
+ *
+ * The thresholds and the hysteresis window below MUST stay in sync with
+ * `app/ml/adaptive_engine.py`. They previously drifted in two ways that made
+ * the same session raise a level when synced and not when played offline:
+ *   - the consecutive-strong walk was unbounded here but capped at 5 on the
+ *     server, so a long high-scoring history could differ at the boundary;
+ *   - the server also regresses on "many mistakes AND slow responses", which
+ *     this client ignored entirely.
  */
 export function suggestDifficulty({
   accuracy,
@@ -133,19 +150,29 @@ export function suggestDifficulty({
   recentScores = [],
 }) {
   const acc = clamp01(accuracy)
-  const strong =
-    acc >= 0.85 &&
-    responseTime <= (EXPECTED_RESPONSE[currentDifficulty] || 6.0) &&
-    mistakes <= 2
-  const weak = acc < 0.6 || mistakes >= 8
+  const expected = EXPECTED_RESPONSE[currentDifficulty] || 6.0
+
+  // Mirrors the server's response_performance(): <= 60% of expected is
+  // "strong", <= expected is "moderate", anything slower is "weak".
+  const respPerf =
+    responseTime > 0 && responseTime <= expected * 0.6
+      ? 'strong'
+      : responseTime <= expected
+        ? 'moderate'
+        : 'weak'
+
+  const strong = acc >= 0.85 && (respPerf === 'strong' || respPerf === 'moderate') && mistakes <= 2
+  const weak = acc < 0.6 || mistakes >= 8 || (mistakes >= 6 && respPerf === 'weak')
 
   let consecutiveStrong = strong ? 1 : 0
-  for (let i = recentScores.length - 1; i >= 0; i--) {
-    if (recentScores[i] >= 85) consecutiveStrong++
+  // Walk backwards over the same 5-session window the server inspects.
+  const window = recentScores.slice(-5)
+  for (let i = window.length - 1; i >= 0; i--) {
+    if (window[i] >= 85) consecutiveStrong++
     else break
   }
 
-  if (strong && consecutiveStrong >= 2 && currentDifficulty < 5) {
+  if (strong && consecutiveStrong >= 2 && currentDifficulty < MAX_LEVEL) {
     return {
       recommended: currentDifficulty + 1,
       reason: `Your recent accuracy has remained above 85% with few mistakes. Ready for a slightly higher challenge.`,
@@ -162,3 +189,9 @@ export function suggestDifficulty({
     reason: `Your performance at this level is steady. Keeping the current level maintains a good balance.`,
   }
 }
+
+/**
+ * Client-side mirror of the backend's compute_performance_score().
+ * Kept exported so tests can assert both implementations agree.
+ */
+export { computeScore as computePerformanceScore }

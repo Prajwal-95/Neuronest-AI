@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Volume2, Play } from 'lucide-react'
 import { useOffline } from '../offline/OfflineContext'
 import { voiceService } from '../services/voice'
-import { buildSession, suggestDifficulty } from './gameEngine'
+import { buildSession, suggestDifficulty, MAX_LEVEL } from './gameEngine'
 import { makeClientId } from '../offline/sessionQueue'
 import GameResult from '../animation/GameResult'
 import GameHeader, { GameMeta } from '../animation/GameHeader'
@@ -14,22 +14,30 @@ import { useAnimStore } from '../animation/animStore'
 import { useI18n } from '../services/i18n'
 import { getReducedMotion } from '../animation/device'
 
-// Level -> sequence length (Level 1: 3 symbols ... Level 5: 7 symbols)
-const LEVEL_LENGTH = { 1: 3, 2: 4, 3: 5, 4: 6, 5: 7 }
+// Level -> sequence length (Level 1: 3 symbols ... Level 10: 12 symbols)
+const LEVEL_LENGTH = { 1: 3, 2: 4, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 12 }
 
 // Full set of every symbol the game uses. The tap options always show ALL of
 // these, so the sequence (which is drawn from the per-level pool below) is
-// always solvable.
-const ALL_SYMBOLS = ['●', '▲', '★', '■', '◆', '♥', '✚', '☂']
+// always solvable. Grown to 12 entries: the top level recalls 12 symbols, and
+// a sequence must never repeat a symbol or the task is no longer a memory test.
+const ALL_SYMBOLS = ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐', '◉', '⬟', '✦']
 
 // Level -> the symbols the watch sequence is drawn from. Higher levels
-// introduce more distinct symbols to remember.
+// introduce more distinct symbols to remember. The pool must be at least as
+// large as LEVEL_LENGTH for that level, since the sequence uses distinct
+// symbols only.
 const LEVEL_POOL = {
   1: ['●', '▲', '★', '■'],
   2: ['●', '▲', '★', '■', '◆'],
   3: ['●', '▲', '★', '■', '◆', '♥'],
   4: ['●', '▲', '★', '■', '◆', '♥', '✚'],
   5: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂'],
+  6: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐'],
+  7: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐', '◉'],
+  8: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐', '◉', '⬟'],
+  9: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐', '◉', '⬟', '✦'],
+  10: ['●', '▲', '★', '■', '◆', '♥', '✚', '☂', '◐', '◉', '⬟', '✦'],
 }
 
 function shuffle(arr) {
@@ -290,6 +298,15 @@ export default function SequenceRecall() {
                 : tr('games.mindSharp'),
           }}
           onPlayAgain={startGame}
+          onNextLevel={
+            result.prevDifficulty < MAX_LEVEL
+              ? () => {
+                  const next = result.prevDifficulty + 1
+                  localStorage.setItem('neuronest_sequence_level', String(next))
+                  startGame(next)
+                }
+              : null
+          }
           onNext={() =>
             navigate('/patient/games', {
               state: {

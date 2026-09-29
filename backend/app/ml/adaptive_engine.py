@@ -18,7 +18,15 @@ from typing import List, Dict, Any
 
 # Difficulty bounds
 MIN_DIFFICULTY = 1
-MAX_DIFFICULTY = 5
+MAX_DIFFICULTY = 10
+
+# Expected response time (seconds) per level. Higher levels accept slightly
+# longer responses because the content is genuinely harder. Grown to cover all
+# ten levels; `.get(..., 6.0)` keeps unknown levels on a sane default.
+EXPECTED_RESPONSE = {
+    1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0,
+    6: 9.0, 7: 10.0, 8: 11.0, 9: 12.0, 10: 13.0,
+}
 
 # Performance thresholds (engineering metrics for the prototype)
 ACCURACY_ADVANCE_THRESHOLD = 0.85
@@ -42,7 +50,7 @@ def response_performance(response_time: float, difficulty: int) -> str:
     Thresholds scale with difficulty so that higher difficulties accept
     slightly longer response times (harder content takes longer).
     """
-    base = {1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0}.get(difficulty, 6.0)
+    base = EXPECTED_RESPONSE.get(difficulty, 6.0)
     if response_time > 0 and response_time <= base * 0.6:
         return "strong"
     if response_time <= base:
@@ -60,7 +68,7 @@ def adaptive_engine(input_data: Dict[str, Any]) -> Dict[str, Any]:
             accuracy (float 0..1)
             response_time (float seconds)
             mistakes (int)
-            current_difficulty (int 1..5)
+            current_difficulty (int 1..10)
             recent_scores (list[float]) - recent performance scores
 
     Returns:
@@ -158,7 +166,7 @@ def compute_performance_score(metrics: Dict[str, Any]) -> float:
     recent_scores = list(metrics.get("recent_scores", []))
 
     # Response efficiency: faster relative to expected time is better.
-    expected = {1: 4.0, 2: 5.0, 3: 6.0, 4: 7.0, 5: 8.0}.get(difficulty, 6.0)
+    expected = EXPECTED_RESPONSE.get(difficulty, 6.0)
     resp_efficiency = max(0.0, min(1.0, expected / response_time if response_time > 0 else 0.5))
     if response_time == 0:
         resp_efficiency = 0.5
