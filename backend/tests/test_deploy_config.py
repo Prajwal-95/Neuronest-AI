@@ -14,8 +14,9 @@ developer laptop:
   `VITE_API_URL` on the static site have to agree with the services' *public
   URLs*. A service name usually gives you `https://<name>.onrender.com`, but
   Render appends a suffix when the name is already taken - `neuronest-api`
-  actually deployed as `neuronest-api-39se.onrender.com` - so the API's real URL
-  is pinned in `PROD_API_URL` instead of being derived from the name. Getting
+  deployed as `neuronest-api-39se.onrender.com` and `neuronest-web` as
+  `neuronest-web-1fj8.onrender.com` - so both real URLs are pinned in
+  `PROD_API_URL` / `PROD_WEB_URL` instead of being derived from the name. Getting
   either value wrong produces a deployed app whose every request is blocked by
   CORS or "Failed to fetch" - a 3-second test beats an hour of staring at the
   network tab.
@@ -36,8 +37,6 @@ from app.config import BACKEND_DIR, Settings, is_unset
 REPO_ROOT = BACKEND_DIR.parent
 BLUEPRINT_FILE = REPO_ROOT / "render.yaml"
 
-RENDER_HOST_SUFFIX = ".onrender.com"
-
 #: The API service's real public URL. Render serves `https://<name>.onrender.com`
 #: only while that name is still free when the service is created, so
 #: `neuronest-api` came out as `neuronest-api-39se.onrender.com`. `VITE_API_URL`
@@ -45,6 +44,14 @@ RENDER_HOST_SUFFIX = ".onrender.com"
 #: that actually answers, which is why the assertion below pins the URL itself
 #: rather than rebuilding it from the service name.
 PROD_API_URL = "https://neuronest-api-39se.onrender.com"
+
+#: The static site's real public URL, pinned for exactly the same reason: the
+#: `neuronest-web` name was already taken, so the PWA is actually served from
+#: `neuronest-web-1fj8.onrender.com`. `CORSMiddleware` compares the browser's
+#: `Origin` header against `CORS_ORIGINS` entries literally - scheme + host, no
+#: trailing slash - so the name-derived host is just a foreign origin and the
+#: deployed app had every request blocked. Deriving it from the name is the bug.
+PROD_WEB_URL = "https://neuronest-web-1fj8.onrender.com"
 
 
 def load_blueprint() -> dict:
@@ -200,9 +207,17 @@ class TestRenderBlueprint(unittest.TestCase):
                     )
 
     def test_the_api_allows_the_static_site_origin(self):
-        """Render derives the public URL from the service name - CORS must match."""
+        """`CORS_ORIGINS` must list the static site's *real* public URL.
+
+        Deliberately not `https://<service name>.onrender.com`: Render appended a
+        suffix because the `neuronest-web` name was taken, so the name-derived
+        host is a different origin as far as the browser is concerned and the API
+        rejected every request from the deployed PWA.
+        """
         allowed = cors_from_environment(env_var(self.api, "CORS_ORIGINS")["value"])
-        self.assertIn(f"https://neuronest-web{RENDER_HOST_SUFFIX}", allowed)
+        self.assertIn(PROD_WEB_URL, allowed)
+        # Local dev origins stay listed so `npm run dev` can still reach this API.
+        self.assertIn("http://localhost:5173", allowed)
 
     def test_the_static_site_points_at_the_api_origin(self):
         """`VITE_API_URL` is compiled into the bundle - it must be the live URL."""
