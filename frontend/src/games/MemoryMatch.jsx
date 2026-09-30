@@ -81,6 +81,36 @@ export default function MemoryMatch() {
   const [deck, setDeck] = useState(() => buildDeck(pairs))
   const setDeckFor = (p) => setDeck(buildDeck(p))
 
+  // Every timer this component creates is registered here so a restart can
+  // cancel the previous round's pending work. An untracked setTimeout from an
+  // old round fires against the NEW board - clearing a fresh selection,
+  // unshaking freshly dealt cards, or ending a preview that has only just
+  // started. `later`/`every` are thin wrappers that self-remove on fire.
+  const timeoutsRef = useRef(new Set())
+  const intervalsRef = useRef(new Set())
+
+  const later = (fn, ms) => {
+    const id = setTimeout(() => {
+      timeoutsRef.current.delete(id)
+      fn()
+    }, ms)
+    timeoutsRef.current.add(id)
+    return id
+  }
+
+  const every = (fn, ms) => {
+    const id = setInterval(fn, ms)
+    intervalsRef.current.add(id)
+    return id
+  }
+
+  const clearPendingTimers = () => {
+    timeoutsRef.current.forEach((id) => clearTimeout(id))
+    timeoutsRef.current.clear()
+    intervalsRef.current.forEach((id) => clearInterval(id))
+    intervalsRef.current.clear()
+  }
+
   const [flipped, setFlipped] = useState([])
   const [matched, setMatched] = useState([])
   const [moves, setMoves] = useState(0)
@@ -96,13 +126,20 @@ export default function MemoryMatch() {
   const lockRef = useRef(false)
   const lastClickRef = useRef({ x: 0, y: 0 })
 
-  // Memorise phase: the board is dealt face-up for `previewMs` before the
-  // player may touch it. `countdown` feeds the "memorise, N seconds" prompt and
-  // `isPreviewing` gates handleFlip so a tap cannot skip the study time.
+  // Memorise phase: the whole board is dealt FACE-UP for `previewMs` before the
+  // player may touch it. `countdown` feeds the "memorise, N seconds" prompt,
+  // `isPreviewing` both forces every card face-up in the render (see the deck
+  // map below) and gates handleFlip so a tap cannot skip the study time.
   const [isPreviewing, setIsPreviewing] = useState(false)
   const [countdown, setCountdown] = useState(0)
-  const tickRef = useRef(null)
-  const endRef = useRef(null)
+
+  // Bumped on every startGame. React bails out of a re-render when a state
+  // setter receives the value it already holds, so restarting *during* a
+  // preview (isPreviewing is already true) would otherwise leave the effect
+  // below un-re-run and the original preview would end early against the
+  // freshly dealt board. Making the preview run id part of the dependency list
+  // forces the old timers to be torn down and a full-length one to be armed.
+  const [previewRun, setPreviewRun] = useState(0)
 
   const completed = matched.length === deck.length && deck.length > 0
 
@@ -115,33 +152,41 @@ export default function MemoryMatch() {
     return () => clearInterval(id)
   }, [phase, completed, startTime])
 
-  // Memorise countdown. Both timers are cleared on unmount and whenever the
-  // level changes, so a stale timeout can't unlock the board after the player
-  // has already restarted at a different level.
+  // Memorise countdown. The effect body only runs AFTER React has committed the
+  // render that dealt the deck, so the timer can never start against a partial
+  // board. The cleanup tears the previous round's timers down, so a restart -
+  // including one mid-preview - re-arms a full-length countdown instead of
+  // letting a stale timeout unlock the new board early.
   useEffect(() => {
     if (!isPreviewing) return
     setCountdown(Math.ceil(previewMs / 1000))
-    tickRef.current = setInterval(() => {
+    const tickId = every(() => {
       setCountdown((c) => Math.max(0, c - 1))
     }, 1000)
-    endRef.current = setTimeout(() => {
+    // Ending the preview flips every unmatched card face-down at once: there is
+    // nothing in `flipped`/`matched` yet (both are reset by startGame and taps
+    // are ignored while previewing), so dropping `isPreviewing` alone puts the
+    // entire board back down in a single render.
+    const endId = later(() => {
+      setFlipped([])
+      setMismatchPair(null)
+      setShakeId(null)
       setIsPreviewing(false)
       setStartTime(Date.now())
       voiceService.speak('Now find the matching pairs.')
     }, previewMs)
+    // Re-running this effect (restart, level change, unmount) cancels the
+    // previous preview's timers so they cannot act on the new board.
     return () => {
-      clearInterval(tickRef.current)
-      clearTimeout(endRef.current)
+      clearInterval(tickId)
+      intervalsRef.current.delete(tickId)
+      clearTimeout(endId)
+      timeoutsRef.current.delete(endId)
     }
-  }, [isPreviewing, previewMs])
+    // `previewRun` re-keys the preview so a rapid restart re-arms it.
+  }, [isPreviewing, previewMs, previewRun])
 
-  useEffect(
-    () => () => {
-      clearInterval(tickRef.current)
-      clearTimeout(endRef.current)
-    },
-    []
-  )
+  useEffect(() => () => clearPendingTimers(), [])
 
   const startGame = (level) => {
     const lv = level || difficulty
@@ -150,6 +195,9 @@ export default function MemoryMatch() {
     voiceService.speak(
       `Let's play Memory Match. Find the matching pairs of cards. Level ${lv}.`
     )
+    // Cancel the previous round's mismatch/match delays and any preview that is
+    // still running, so nothing from the old board can act on the new one.
+    clearPendingTimers()
     setFlipped([])
     setMatched([])
     setMoves(0)
@@ -157,8 +205,15 @@ export default function MemoryMatch() {
     setResult(null)
     setElapsed(0)
     setStartTime(null)
+    setCountdown(0)
+    setFeatured(false)
+    setMismatchPair(null)
+    setShakeId(null)
     setPhase('playing')
     setIsPreviewing(true)
+    // Re-key the preview even when isPreviewing was already true, otherwise
+    // React would skip the re-render and the stale countdown would carry over.
+    setPreviewRun((n) => n + 1)
     lockRef.current = false
     setDeckFor(lvlPairs)
   }
@@ -181,11 +236,13 @@ export default function MemoryMatch() {
       setMoves((m) => m + 1)
       const [a, b] = next
       if (deck[a] === deck[b]) {
-        setTimeout(() => {
+        // Registered so a restart mid-resolution cannot apply a stale match to
+        // the freshly dealt deck.
+        later(() => {
           setMatched((m) => [...m, a, b])
           setFlipped([])
           setFeatured(true)
-          setTimeout(() => setFeatured(false), 600)
+          later(() => setFeatured(false), 600)
           voiceService.speak('Excellent match.')
           triggerBurst(lastClickRef.current.x, lastClickRef.current.y)
           setSceneEnergy((current) => Math.min(1, current + 0.1))
@@ -195,7 +252,11 @@ export default function MemoryMatch() {
         const id = Date.now()
         setMismatchPair([a, b])
         setShakeId(id)
-        setTimeout(() => {
+        // `lockRef` keeps a third card from being selected while the pair is
+        // being resolved; the 700ms flip-back is registered so it cannot fire
+        // against a board from a later round.
+        later(() => {
+          lockRef.current = false
           setFlipped([])
           setMismatchPair(null)
           setShakeId(null)
@@ -350,7 +411,14 @@ export default function MemoryMatch() {
           >
             {deck.map((symbol, i) => {
               const isMatched = matched.includes(i)
-              const isFlipped = isMatched || flipped.includes(i)
+              // THE preview fix: during the memorise window EVERY card must be
+              // face-up. Without `isPreviewing ||` here the whole board rendered
+              // face-down, because `flipped`/`matched` are both empty while
+              // previewing - so the player was asked to memorise a grid of
+              // card backs. Once the preview ends this falls back to
+              // matched/selected only, which flips every unmatched card down
+              // in the same render.
+              const isFlipped = isPreviewing || isMatched || flipped.includes(i)
               const inMismatch = mismatchPair && mismatchPair.includes(i)
               return (
                 <MemoryCard
